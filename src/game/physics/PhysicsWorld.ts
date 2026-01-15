@@ -1,46 +1,62 @@
 /**
- * Physics World Wrapper for Planck.js
- * Manages the physics simulation
+ * Physics World Wrapper for Rapier.js
+ * Manages the physics simulation using WebAssembly
  */
 
-import { World, Vec2 } from 'planck';
+import RAPIER from '@dimforge/rapier2d-compat';
 import {
   GRAVITY,
-  VELOCITY_ITERATIONS,
-  POSITION_ITERATIONS,
   SCALE,
 } from '../config';
 
 export class PhysicsWorld {
-  public world: World;
-  private readonly velocityIterations: number;
-  private readonly positionIterations: number;
+  public world!: RAPIER.World;
+  public RAPIER!: typeof RAPIER;
+  private eventQueue!: RAPIER.EventQueue;
 
   constructor() {
-    console.log('Initializing PhysicsWorld...');
-    // Create physics world with gravity
-    // Note: Planck uses Y-up coordinate system, so positive Y is up
-    this.world = World({
-      gravity: Vec2(0, GRAVITY),
-    });
+    console.log('PhysicsWorld instance created. Call init() to initialize.');
+  }
 
-    this.velocityIterations = VELOCITY_ITERATIONS;
-    this.positionIterations = POSITION_ITERATIONS;
+  /**
+   * Initialize the physics world (async due to WASM loading)
+   */
+  async init(): Promise<void> {
+    console.log('Initializing Rapier.js WASM...');
+    await RAPIER.init();
+    this.RAPIER = RAPIER;
+
+    // Create physics world with gravity
+    // Note: Rapier uses Y-up coordinate system, so negative Y is down
+    this.world = new RAPIER.World({ x: 0, y: GRAVITY });
+    this.eventQueue = new RAPIER.EventQueue(true);
+
+    console.log('Rapier.js initialized successfully');
   }
 
   /**
    * Step the physics simulation
-   * @param dt - Delta time in seconds
+   * @param _dt - Delta time (unused, Rapier uses fixed timestep)
    */
-  step(dt: number): void {
-    this.world.step(dt, this.velocityIterations, this.positionIterations);
+  step(_dt?: number): void {
+    this.world.step(this.eventQueue);
+  }
+
+  /**
+   * Get the event queue for collision detection
+   */
+  getEventQueue(): RAPIER.EventQueue {
+    return this.eventQueue;
   }
 
   /**
    * Convert pixel coordinates to physics world coordinates
    */
-  toPhysics(pixelX: number, pixelY: number): Vec2 {
-    return Vec2(pixelX / SCALE, -pixelY / SCALE);
+  toPhysics(pixelX: number, pixelY: number): { x: number; y: number } {
+    return {
+      x: pixelX / SCALE,
+      y: -pixelY / SCALE,
+    };
   }
 
   /**
@@ -54,21 +70,26 @@ export class PhysicsWorld {
   }
 
   /**
-   * Get the Planck.js world instance
+   * Get the Rapier.js world instance
    */
-  getWorld(): World {
+  getWorld(): RAPIER.World {
     return this.world;
+  }
+
+  /**
+   * Get the RAPIER module for accessing types and constructors
+   */
+  getRAPIER(): typeof RAPIER {
+    return this.RAPIER;
   }
 
   /**
    * Destroy all bodies in the world
    */
   clear(): void {
-    let body = this.world.getBodyList();
-    while (body) {
-      const next = body.getNext();
-      this.world.destroyBody(body);
-      body = next;
-    }
+    // Remove all rigid bodies
+    this.world.forEachRigidBody((body) => {
+      this.world.removeRigidBody(body);
+    });
   }
 }

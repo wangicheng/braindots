@@ -14,6 +14,6 @@
   },
   "dependencies": {
     "pixi.js": "^8.15.0",
-    "planck": "^1.4.2"
+    "@dimforge/rapier2d-compat": "^0.14.0"
   }
 }

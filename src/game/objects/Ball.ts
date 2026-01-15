@@ -4,7 +4,7 @@
  */
 
 import * as PIXI from 'pixi.js';
-import { Body, Circle } from 'planck';
+import RAPIER from '@dimforge/rapier2d-compat';
 import {
   SCALE,
   BALL_RADIUS,
@@ -12,7 +12,7 @@ import {
   BALL_FRICTION,
   BALL_RESTITUTION,
   BALL_COLORS,
-  CATEGORY,
+  COLLISION_GROUP,
 } from '../config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 
@@ -20,7 +20,9 @@ export type BallType = 'blue' | 'pink';
 
 export class Ball {
   public graphics: PIXI.Graphics;
-  public body: Body;
+  public body: RAPIER.RigidBody;
+  public collider: RAPIER.Collider;
+  private physicsWorld: PhysicsWorld;
   private readonly radius: number;
 
   constructor(
@@ -30,6 +32,7 @@ export class Ball {
     type: BallType = 'blue',
     startActive: boolean = false
   ) {
+    this.physicsWorld = physicsWorld;
     this.radius = BALL_RADIUS;
 
     // Create Pixi.js graphics
@@ -37,24 +40,34 @@ export class Ball {
     this.drawBall(type);
     this.graphics.position.set(x, y);
 
-    // Create Planck.js physics body
+    // Convert to physics coordinates
     const physicsPos = physicsWorld.toPhysics(x, y);
+    const R = physicsWorld.getRAPIER();
 
-    this.body = physicsWorld.getWorld().createBody({
-      type: startActive ? 'dynamic' : 'static',
-      position: physicsPos,
-      bullet: true, // Better collision detection for fast-moving objects
-    });
+    // Create Rapier rigid body
+    const rigidBodyDesc = startActive
+      ? R.RigidBodyDesc.dynamic()
+      : R.RigidBodyDesc.fixed();
 
-    // Create circular fixture
-    const circleShape = Circle(this.radius / SCALE);
-    this.body.createFixture({
-      shape: circleShape,
-      density: BALL_DENSITY,
-      friction: BALL_FRICTION,
-      restitution: BALL_RESTITUTION,
-      filterCategoryBits: type === 'blue' ? CATEGORY.BLUE_BALL : CATEGORY.PINK_BALL,
-    });
+    rigidBodyDesc
+      .setTranslation(physicsPos.x, physicsPos.y)
+      .setCcdEnabled(true); // Better collision detection for fast-moving objects
+
+    this.body = physicsWorld.getWorld().createRigidBody(rigidBodyDesc);
+
+    // Create circular collider
+    const collisionGroup = type === 'blue'
+      ? COLLISION_GROUP.BLUE_BALL
+      : COLLISION_GROUP.PINK_BALL;
+
+    const colliderDesc = R.ColliderDesc.ball(this.radius / SCALE)
+      .setDensity(BALL_DENSITY)
+      .setFriction(BALL_FRICTION)
+      .setRestitution(BALL_RESTITUTION)
+      .setCollisionGroups(collisionGroup)
+      .setActiveEvents(R.ActiveEvents.COLLISION_EVENTS);
+
+    this.collider = physicsWorld.getWorld().createCollider(colliderDesc, this.body);
   }
 
   /**
@@ -71,8 +84,8 @@ export class Ball {
    * Update graphics position from physics body
    */
   update(): void {
-    const pos = this.body.getPosition();
-    const angle = this.body.getAngle();
+    const pos = this.body.translation();
+    const angle = this.body.rotation();
 
     // Convert physics coordinates to pixel coordinates
     this.graphics.position.x = pos.x * SCALE;
@@ -84,10 +97,17 @@ export class Ball {
    * Activate physics for the ball (make it dynamic)
    */
   activate(): void {
-    if (this.body.getType() !== 'dynamic') {
-      this.body.setType('dynamic');
-      this.body.setAwake(true);
+    const R = this.physicsWorld.getRAPIER();
+    if (this.body.bodyType() !== R.RigidBodyType.Dynamic) {
+      this.body.setBodyType(R.RigidBodyType.Dynamic, true);
     }
+  }
+
+  /**
+   * Get the collider handle for collision detection
+   */
+  getColliderHandle(): number {
+    return this.collider.handle;
   }
 
   /**
@@ -102,7 +122,7 @@ export class Ball {
    * Destroy the ball
    */
   destroy(physicsWorld: PhysicsWorld): void {
-    physicsWorld.getWorld().destroyBody(this.body);
+    physicsWorld.getWorld().removeRigidBody(this.body);
     this.graphics.destroy();
   }
 }

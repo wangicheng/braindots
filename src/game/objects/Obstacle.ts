@@ -1,19 +1,20 @@
 import * as PIXI from 'pixi.js';
-import { Body, Box, Circle, Polygon, Vec2 } from 'planck';
+import RAPIER from '@dimforge/rapier2d-compat';
 import {
   SCALE,
   OBSTACLE_COLOR,
   OBSTACLE_FRICTION,
   OBSTACLE_RESTITUTION,
   OBSTACLE_DENSITY,
-  CATEGORY,
+  COLLISION_GROUP,
 } from '../config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { ObstacleConfig } from '../levels/LevelSchema';
 
 export class Obstacle {
   public graphics: PIXI.Graphics;
-  public body: Body;
+  public body: RAPIER.RigidBody;
+  public colliders: RAPIER.Collider[] = [];
 
   constructor(
     physicsWorld: PhysicsWorld,
@@ -37,32 +38,37 @@ export class Obstacle {
     this.graphics.position.set(x, y);
     this.graphics.rotation = (angle * Math.PI) / 180;
 
-    // Create Planck.js static body
+    const world = physicsWorld.getWorld();
+    const R = physicsWorld.getRAPIER();
+
+    // Create Rapier static body
     const physicsPos = physicsWorld.toPhysics(x, y);
-    this.body = physicsWorld.getWorld().createBody({
-      type: 'static',
-      position: physicsPos,
-      angle: - (angle * Math.PI) / 180,
-    });
+    const rigidBodyDesc = R.RigidBodyDesc.fixed()
+      .setTranslation(physicsPos.x, physicsPos.y)
+      .setRotation(-(angle * Math.PI) / 180);
 
-    // this.graphics.fill({ color: OBSTACLE_COLOR }); // Removed: Fix rendering order
-
-    let shape; // planck.Shape
+    this.body = world.createRigidBody(rigidBodyDesc);
 
     switch (type) {
       case 'circle': {
         const r = radius || width / 2;
         this.graphics.circle(0, 0, r);
         this.graphics.fill({ color: OBSTACLE_COLOR });
-        shape = Circle(r / SCALE);
+
+        const colliderDesc = R.ColliderDesc.ball(r / SCALE)
+          .setFriction(OBSTACLE_FRICTION)
+          .setRestitution(OBSTACLE_RESTITUTION)
+          .setDensity(OBSTACLE_DENSITY)
+          .setCollisionGroups(COLLISION_GROUP.OBSTACLE);
+
+        this.colliders.push(world.createCollider(colliderDesc, this.body));
         break;
       }
+
       case 'triangle': {
-        // Isosceles triangle pointing up (relative to body)
-        // Vertices relative to (0,0)
         const w = width;
         const h = height;
-        // Top, Bottom-Right, Bottom-Left
+        // Vertices relative to (0,0)
         const v1 = { x: 0, y: -h / 2 };
         const v2 = { x: w / 2, y: h / 2 };
         const v3 = { x: -w / 2, y: h / 2 };
@@ -70,15 +76,26 @@ export class Obstacle {
         this.graphics.poly([v1.x, v1.y, v2.x, v2.y, v3.x, v3.y]);
         this.graphics.fill({ color: OBSTACLE_COLOR });
 
-        // Planck Polygon vertices (CCW order)
-        // Physics Y is flipped
-        const p1 = Vec2(v1.x / SCALE, -v1.y / SCALE); // (0, h)
-        const p2 = Vec2(v2.x / SCALE, -v2.y / SCALE); // (w, -h)
-        const p3 = Vec2(v3.x / SCALE, -v3.y / SCALE); // (-w, -h)
+        // Create convex hull from vertices (Rapier uses Float32Array)
+        const vertices = new Float32Array([
+          v1.x / SCALE, -v1.y / SCALE,
+          v2.x / SCALE, -v2.y / SCALE,
+          v3.x / SCALE, -v3.y / SCALE,
+        ]);
 
-        shape = Polygon([p3, p2, p1]);
+        const colliderDesc = R.ColliderDesc.convexHull(vertices);
+        if (colliderDesc) {
+          colliderDesc
+            .setFriction(OBSTACLE_FRICTION)
+            .setRestitution(OBSTACLE_RESTITUTION)
+            .setDensity(OBSTACLE_DENSITY)
+            .setCollisionGroups(COLLISION_GROUP.OBSTACLE);
+
+          this.colliders.push(world.createCollider(colliderDesc, this.body));
+        }
         break;
       }
+
       case 'c_shape': {
         // Defined by 3 coordinates (points) determining an arc.
         if (points && points.length === 3 && thickness) {
@@ -89,8 +106,6 @@ export class Obstacle {
           const p3 = points[2];
 
           // Calculate center and radius of circle passing through p1, p2, p3
-          // Algorithm: intersection of perpendicular bisectors of p1p2 and p2p3
-
           const x1 = p1.x, y1 = p1.y;
           const x2 = p2.x, y2 = p2.y;
           const x3 = p3.x, y3 = p3.y;
@@ -98,7 +113,7 @@ export class Obstacle {
           const D = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
 
           if (Math.abs(D) < 0.001) {
-            // Collinear points, treat as straight line p1-p3
+            // Collinear points, treat as straight line
             this.graphics.moveTo(p1.x, p1.y);
             this.graphics.lineTo(p2.x, p2.y);
             this.graphics.lineTo(p3.x, p3.y);
@@ -109,35 +124,22 @@ export class Obstacle {
           const centerX = ((x1 * x1 + y1 * y1) * (y2 - y3) + (x2 * x2 + y2 * y2) * (y3 - y1) + (x3 * x3 + y3 * y3) * (y1 - y2)) / D;
           const centerY = ((x1 * x1 + y1 * y1) * (x3 - x2) + (x2 * x2 + y2 * y2) * (x1 - x3) + (x3 * x3 + y3 * y3) * (x2 - x1)) / D;
 
-          const radius = Math.sqrt(Math.pow(x1 - centerX, 2) + Math.pow(y1 - centerY, 2));
+          const arcRadius = Math.sqrt(Math.pow(x1 - centerX, 2) + Math.pow(y1 - centerY, 2));
 
           // Calculate angles
           let angle1 = Math.atan2(y1 - centerY, x1 - centerX);
-          let angle2 = Math.atan2(y2 - centerY, x2 - centerX);
           let angle3 = Math.atan2(y3 - centerY, x3 - centerX);
 
-          // Normalize angles to 0-2PI relative to angle1 for direction check
           function normalize(a: number) { return (a + 2 * Math.PI) % (2 * Math.PI); }
-          // Relative angles from A1
+          const angle2 = Math.atan2(y2 - centerY, x2 - centerX);
           const relA2 = normalize(angle2 - angle1);
           const relA3 = normalize(angle3 - angle1);
-
-          // If relA2 < relA3, then A2 is between A1 and A3 going CCW (increasing angle in standard math, decreasing in Pixi visually if Y down? No.)
-          // Let's trust the previous logic which seemed to work or at least was intended.
-          // Wait, the user said "except c_shape", so c_shape WAS working/rendering.
-          // So I will preserve c_shape logic exactly as is, just ensuring I don't break it.
-          // The previous logic used stroke, so removing the global 'fill' is fine.
 
           const isCCW = relA2 < relA3;
 
           this.graphics.clear();
-          // Drawing the arc:
-          // anticlockwise: "If true, draws arc in the counter-clockwise direction."
-          // If isCCW is true, we want CCW draw? 
-          // In Step 44 I used `!isCCW`. Let's stick to what was there if it worked (User said c_shape worked).
-          this.graphics.arc(centerX, centerY, radius, angle1, angle3, !isCCW);
+          this.graphics.arc(centerX, centerY, arcRadius, angle1, angle3, !isCCW);
           this.graphics.stroke({ width: thickness, color: OBSTACLE_COLOR, cap: cap === 'round' ? 'round' : 'butt', join: 'round' });
-
 
           // Physics approximation with segments
           const segments = 10;
@@ -153,73 +155,66 @@ export class Obstacle {
 
           for (let i = 0; i < segments; i++) {
             const thetaStart = angle1 + i * angleStep;
-            // Midpoint
             const thetaMid = thetaStart + angleStep / 2;
 
-            const segX = centerX + radius * Math.cos(thetaMid);
-            const segY = centerY + radius * Math.sin(thetaMid);
+            const segX = centerX + arcRadius * Math.cos(thetaMid);
+            const segY = centerY + arcRadius * Math.sin(thetaMid);
 
-            const segLen = 2 * radius * Math.sin(Math.abs(angleStep) / 2);
+            const segLen = 2 * arcRadius * Math.sin(Math.abs(angleStep) / 2);
             const segAngle = thetaMid + Math.PI / 2;
 
-            const pCenter = Vec2(segX / SCALE, -segY / SCALE);
+            const pCenter = physicsWorld.toPhysics(segX, segY);
 
-            const segmentShape = Box(
+            const colliderDesc = R.ColliderDesc.cuboid(
               (segLen / 2) / SCALE,
-              (thickness / 2) / SCALE,
-              pCenter,
-              -segAngle
-            );
+              (thickness / 2) / SCALE
+            )
+              .setTranslation(pCenter.x - physicsPos.x, pCenter.y - physicsPos.y)
+              .setRotation(-segAngle)
+              .setFriction(OBSTACLE_FRICTION)
+              .setRestitution(OBSTACLE_RESTITUTION)
+              .setDensity(OBSTACLE_DENSITY)
+              .setCollisionGroups(COLLISION_GROUP.OBSTACLE);
 
-            this.body.createFixture({
-              shape: segmentShape,
-              friction: OBSTACLE_FRICTION,
-              restitution: OBSTACLE_RESTITUTION,
-              density: OBSTACLE_DENSITY,
-            });
+            this.colliders.push(world.createCollider(colliderDesc, this.body));
           }
 
           // Add Round Caps if requested
           if (cap === 'round') {
             const capRadius = thickness / 2;
 
-            // Start Point
-            const startX = centerX + radius * Math.cos(angle1);
-            const startY = centerY + radius * Math.sin(angle1);
+            const startX = centerX + arcRadius * Math.cos(angle1);
+            const startY = centerY + arcRadius * Math.sin(angle1);
+            const endX = centerX + arcRadius * Math.cos(angle3);
+            const endY = centerY + arcRadius * Math.sin(angle3);
 
-            // End Point
-            const endX = centerX + radius * Math.cos(angle3);
-            const endY = centerY + radius * Math.sin(angle3);
+            const startPos = physicsWorld.toPhysics(startX, startY);
+            const endPos = physicsWorld.toPhysics(endX, endY);
 
-            const startCircle = Circle(
-              Vec2(startX / SCALE, -startY / SCALE),
-              capRadius / SCALE
-            );
+            const startCollider = R.ColliderDesc.ball(capRadius / SCALE)
+              .setTranslation(startPos.x - physicsPos.x, startPos.y - physicsPos.y)
+              .setFriction(OBSTACLE_FRICTION)
+              .setRestitution(OBSTACLE_RESTITUTION)
+              .setDensity(OBSTACLE_DENSITY)
+              .setCollisionGroups(COLLISION_GROUP.OBSTACLE);
 
-            this.body.createFixture({
-              shape: startCircle,
-              friction: OBSTACLE_FRICTION,
-              restitution: OBSTACLE_RESTITUTION,
-              density: OBSTACLE_DENSITY,
-            });
+            this.colliders.push(world.createCollider(startCollider, this.body));
 
-            const endCircle = Circle(
-              Vec2(endX / SCALE, -endY / SCALE),
-              capRadius / SCALE
-            );
+            const endCollider = R.ColliderDesc.ball(capRadius / SCALE)
+              .setTranslation(endPos.x - physicsPos.x, endPos.y - physicsPos.y)
+              .setFriction(OBSTACLE_FRICTION)
+              .setRestitution(OBSTACLE_RESTITUTION)
+              .setDensity(OBSTACLE_DENSITY)
+              .setCollisionGroups(COLLISION_GROUP.OBSTACLE);
 
-            this.body.createFixture({
-              shape: endCircle,
-              friction: OBSTACLE_FRICTION,
-              restitution: OBSTACLE_RESTITUTION,
-              density: OBSTACLE_DENSITY,
-            });
+            this.colliders.push(world.createCollider(endCollider, this.body));
           }
 
           return;
         }
         break;
       }
+
       case 'square':
       case 'rectangle':
       default: {
@@ -229,27 +224,23 @@ export class Obstacle {
         this.graphics.rect(-w / 2, -h / 2, w, h);
         this.graphics.fill({ color: OBSTACLE_COLOR });
 
-        shape = Box(
+        const colliderDesc = R.ColliderDesc.cuboid(
           (w / 2) / SCALE,
           (h / 2) / SCALE
-        );
+        )
+          .setFriction(OBSTACLE_FRICTION)
+          .setRestitution(OBSTACLE_RESTITUTION)
+          .setDensity(OBSTACLE_DENSITY)
+          .setCollisionGroups(COLLISION_GROUP.OBSTACLE);
+
+        this.colliders.push(world.createCollider(colliderDesc, this.body));
         break;
       }
-    }
-
-    if (shape) {
-      this.body.createFixture({
-        shape: shape,
-        friction: OBSTACLE_FRICTION,
-        restitution: OBSTACLE_RESTITUTION,
-        density: OBSTACLE_DENSITY,
-        filterCategoryBits: CATEGORY.OBSTACLE,
-      });
     }
   }
 
   update(): void {
-    // Static
+    // Static body, no update needed
   }
 
   /**
@@ -261,7 +252,7 @@ export class Obstacle {
   }
 
   destroy(physicsWorld: PhysicsWorld): void {
-    physicsWorld.getWorld().destroyBody(this.body);
+    physicsWorld.getWorld().removeRigidBody(this.body);
     this.graphics.destroy();
   }
 }

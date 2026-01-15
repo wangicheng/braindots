@@ -1,25 +1,29 @@
 import * as PIXI from 'pixi.js';
-import { Body, Box, Circle, Polygon, Vec2 } from 'planck';
+import RAPIER from '@dimforge/rapier2d-compat';
 import {
   SCALE,
   FALLING_OBJECT_COLOR,
   FALLING_OBJECT_FRICTION,
   FALLING_OBJECT_RESTITUTION,
   FALLING_OBJECT_DENSITY,
-  CATEGORY,
+  COLLISION_GROUP,
 } from '../config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { FallingObjectConfig } from '../levels/LevelSchema';
 
 export class FallingObject {
   public graphics: PIXI.Graphics;
-  public body: Body;
+  public body: RAPIER.RigidBody;
+  public colliders: RAPIER.Collider[] = [];
+  private physicsWorld: PhysicsWorld;
 
   constructor(
     physicsWorld: PhysicsWorld,
     config: FallingObjectConfig,
     startActive: boolean = false
   ) {
+    this.physicsWorld = physicsWorld;
+
     const {
       type = 'rectangle',
       x,
@@ -37,32 +41,40 @@ export class FallingObject {
     this.graphics.position.set(x, y);
     this.graphics.rotation = (angle * Math.PI) / 180;
 
-    // Create Planck.js physics body
+    const world = physicsWorld.getWorld();
+    const R = physicsWorld.getRAPIER();
+
+    // Create Rapier rigid body (fixed initially, can be activated later)
     const physicsPos = physicsWorld.toPhysics(x, y);
+    const rigidBodyDesc = startActive
+      ? R.RigidBodyDesc.dynamic()
+      : R.RigidBodyDesc.fixed();
 
-    this.body = physicsWorld.getWorld().createBody({
-      type: startActive ? 'dynamic' : 'static', // Start static if not active, then switch to dynamic
-      position: physicsPos,
-      angle: - (angle * Math.PI) / 180,
-    });
+    rigidBodyDesc
+      .setTranslation(physicsPos.x, physicsPos.y)
+      .setRotation(-(angle * Math.PI) / 180);
 
-    // this.graphics.fill({ color: FALLING_OBJECT_COLOR }); // Removed: Fix rendering order
-
-    let shape;
+    this.body = world.createRigidBody(rigidBodyDesc);
 
     switch (type) {
       case 'circle': {
         const r = radius || width / 2;
         this.graphics.circle(0, 0, r);
         this.graphics.fill({ color: FALLING_OBJECT_COLOR });
-        shape = Circle(r / SCALE);
+
+        const colliderDesc = R.ColliderDesc.ball(r / SCALE)
+          .setDensity(FALLING_OBJECT_DENSITY)
+          .setFriction(FALLING_OBJECT_FRICTION)
+          .setRestitution(FALLING_OBJECT_RESTITUTION)
+          .setCollisionGroups(COLLISION_GROUP.FALLING_OBJECT);
+
+        this.colliders.push(world.createCollider(colliderDesc, this.body));
         break;
       }
+
       case 'triangle': {
-        // Isosceles triangle pointing up (relative to body)
         const w = width;
         const h = height;
-        // Vertices relative to (0,0)
         const v1 = { x: 0, y: -h / 2 };
         const v2 = { x: w / 2, y: h / 2 };
         const v3 = { x: -w / 2, y: h / 2 };
@@ -70,13 +82,25 @@ export class FallingObject {
         this.graphics.poly([v1.x, v1.y, v2.x, v2.y, v3.x, v3.y]);
         this.graphics.fill({ color: FALLING_OBJECT_COLOR });
 
-        const p1 = Vec2(v1.x / SCALE, -v1.y / SCALE);
-        const p2 = Vec2(v2.x / SCALE, -v2.y / SCALE);
-        const p3 = Vec2(v3.x / SCALE, -v3.y / SCALE);
+        const vertices = new Float32Array([
+          v1.x / SCALE, -v1.y / SCALE,
+          v2.x / SCALE, -v2.y / SCALE,
+          v3.x / SCALE, -v3.y / SCALE,
+        ]);
 
-        shape = Polygon([p3, p2, p1]);
+        const colliderDesc = R.ColliderDesc.convexHull(vertices);
+        if (colliderDesc) {
+          colliderDesc
+            .setDensity(FALLING_OBJECT_DENSITY)
+            .setFriction(FALLING_OBJECT_FRICTION)
+            .setRestitution(FALLING_OBJECT_RESTITUTION)
+            .setCollisionGroups(COLLISION_GROUP.FALLING_OBJECT);
+
+          this.colliders.push(world.createCollider(colliderDesc, this.body));
+        }
         break;
       }
+
       case 'square':
       case 'rectangle':
       default: {
@@ -86,28 +110,24 @@ export class FallingObject {
         this.graphics.rect(-w / 2, -h / 2, w, h);
         this.graphics.fill({ color: FALLING_OBJECT_COLOR });
 
-        shape = Box(
+        const colliderDesc = R.ColliderDesc.cuboid(
           (w / 2) / SCALE,
           (h / 2) / SCALE
-        );
+        )
+          .setDensity(FALLING_OBJECT_DENSITY)
+          .setFriction(FALLING_OBJECT_FRICTION)
+          .setRestitution(FALLING_OBJECT_RESTITUTION)
+          .setCollisionGroups(COLLISION_GROUP.FALLING_OBJECT);
+
+        this.colliders.push(world.createCollider(colliderDesc, this.body));
         break;
       }
-    }
-
-    if (shape) {
-      this.body.createFixture({
-        shape: shape,
-        density: FALLING_OBJECT_DENSITY,
-        friction: FALLING_OBJECT_FRICTION,
-        restitution: FALLING_OBJECT_RESTITUTION,
-        filterCategoryBits: CATEGORY.FALLING_OBJECT,
-      });
     }
   }
 
   update(): void {
-    const pos = this.body.getPosition();
-    const angle = this.body.getAngle();
+    const pos = this.body.translation();
+    const angle = this.body.rotation();
 
     // Convert physics coordinates to pixel coordinates
     this.graphics.position.x = pos.x * SCALE;
@@ -116,14 +136,14 @@ export class FallingObject {
   }
 
   activate(): void {
-    if (this.body.getType() !== 'dynamic') {
-      this.body.setType('dynamic');
-      this.body.setAwake(true);
+    const R = this.physicsWorld.getRAPIER();
+    if (this.body.bodyType() !== R.RigidBodyType.Dynamic) {
+      this.body.setBodyType(R.RigidBodyType.Dynamic, true);
     }
   }
 
   destroy(physicsWorld: PhysicsWorld): void {
-    physicsWorld.getWorld().destroyBody(this.body);
+    physicsWorld.getWorld().removeRigidBody(this.body);
     this.graphics.destroy();
   }
 }

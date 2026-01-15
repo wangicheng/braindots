@@ -19,7 +19,6 @@ import {
   BACKGROUND_COLOR,
   GRID_SIZE,
   GRID_COLOR,
-  CATEGORY,
   BALL_COLORS,
   BALL_RADIUS,
 } from './config';
@@ -50,6 +49,9 @@ export class Game {
   private effectManager: EffectManager;
   private gameState: GameState = GameState.READY;
 
+  // Collision handle mapping for ball detection
+  private ballColliderHandles: Map<number, Ball> = new Map();
+
   constructor() {
     this.app = new PIXI.Application();
     this.physicsWorld = new PhysicsWorld();
@@ -63,6 +65,9 @@ export class Game {
    * Initialize the game
    */
   async init(): Promise<void> {
+    // Initialize Rapier.js WASM (must be done first)
+    await this.physicsWorld.init();
+
     // Initialize Pixi.js application
     await this.app.init({
       width: GAME_WIDTH,
@@ -110,27 +115,15 @@ export class Game {
     // Create UI
     this.createUI();
 
-
-
-    // Load assets
-    await PIXI.Assets.load('/object_ami.png');
-
-
-    // Setup collision detection
-    this.setupCollisionDetection();
-
     // Start game loop
     this.app.ticker.add(this.update.bind(this));
   }
 
   /**
-   * Create initial game objects
-   */
-  /**
    * Load the first level
    */
   private async createGameObjects(): Promise<void> {
-    await this.loadLevel(3);
+    await this.loadLevel(0);
   }
 
   /**
@@ -145,26 +138,24 @@ export class Game {
 
     this.currentLevelIndex = index;
 
-    // Clear existing dynamic objects (except lines? maybe keep lines or clear them?)
-    // Typically reloading a level clears lines.
+    // Clear existing dynamic objects
     this.clearLevel();
 
     // Spawn Balls
     const { blue, pink } = levelData.balls;
-    // Balls start inactive (static) until first line is drawn
     const blueBall = new Ball(this.physicsWorld, blue.x, blue.y, 'blue', false);
     const pinkBall = new Ball(this.physicsWorld, pink.x, pink.y, 'pink', false);
 
     this.balls.push(blueBall, pinkBall);
     this.gameContainer.addChild(blueBall.graphics, pinkBall.graphics);
 
-    // Spawn Obstacles
+    // Map collider handles for collision detection
+    this.ballColliderHandles.set(blueBall.getColliderHandle(), blueBall);
+    this.ballColliderHandles.set(pinkBall.getColliderHandle(), pinkBall);
+
     // Spawn Obstacles
     for (const obs of levelData.obstacles) {
-      const obstacle = new Obstacle(
-        this.physicsWorld,
-        obs
-      );
+      const obstacle = new Obstacle(this.physicsWorld, obs);
       this.obstacles.push(obstacle);
       this.gameContainer.addChild(obstacle.graphics);
     }
@@ -172,13 +163,8 @@ export class Game {
     // Spawn Falling Objects
     if (levelData.fallingObjects) {
       for (const obj of levelData.fallingObjects) {
-        const fallingObj = new FallingObject(
-          this.physicsWorld,
-          obj,
-          false // start inactive
-        );
+        const fallingObj = new FallingObject(this.physicsWorld, obj, false);
         this.fallingObjects.push(fallingObj);
-        this.gameContainer.addChild(fallingObj.graphics);
         this.gameContainer.addChild(fallingObj.graphics);
       }
     }
@@ -220,6 +206,7 @@ export class Game {
       ball.destroy(this.physicsWorld);
     }
     this.balls = [];
+    this.ballColliderHandles.clear();
 
     // Clear obstacles
     for (const obs of this.obstacles) {
@@ -234,7 +221,6 @@ export class Game {
     this.fallingObjects = [];
 
     // Reset game state
-    // Reset game state
     this.hasStarted = false;
     this.gameState = GameState.READY;
     this.effectManager.clear();
@@ -243,7 +229,6 @@ export class Game {
     for (const net of this.nets) {
       net.destroy();
     }
-    this.nets = [];
     this.nets = [];
     if (this.drawingManager) {
       this.drawingManager.setRestrictedAreasProvider(() => []);
@@ -298,13 +283,13 @@ export class Game {
     uiOverlay.style.left = '0';
     uiOverlay.style.width = '100%';
     uiOverlay.style.height = '100%';
-    uiOverlay.style.pointerEvents = 'none'; // Click-through
-    uiOverlay.style.zIndex = '10'; // Above canvas
+    uiOverlay.style.pointerEvents = 'none';
+    uiOverlay.style.zIndex = '10';
 
     // Restart Button
     const restartBtn = document.createElement('button');
     restartBtn.textContent = '🔄 Restart';
-    restartBtn.style.pointerEvents = 'auto'; // Clickable
+    restartBtn.style.pointerEvents = 'auto';
     restartBtn.style.position = 'absolute';
     restartBtn.style.top = '20px';
     restartBtn.style.right = '20px';
@@ -318,7 +303,6 @@ export class Game {
     restartBtn.style.backdropFilter = 'blur(4px)';
     restartBtn.style.transition = 'all 0.2s ease';
 
-    // Hover effect
     restartBtn.addEventListener('mouseenter', () => {
       restartBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
     });
@@ -342,28 +326,26 @@ export class Game {
   }
 
   /**
-   * Main game loop update
+   * Process collision events from Rapier
    */
-  private setupCollisionDetection(): void {
-    this.physicsWorld.getWorld().on('begin-contact', (contact) => {
-      if (this.gameState !== GameState.PLAYING) return;
+  private processCollisions(): void {
+    if (this.gameState !== GameState.PLAYING) return;
 
-      const fixtureA = contact.getFixtureA();
-      const fixtureB = contact.getFixtureB();
-      const categoryA = fixtureA.getFilterCategoryBits();
-      const categoryB = fixtureB.getFilterCategoryBits();
+    const eventQueue = this.physicsWorld.getEventQueue();
 
-      // Check collision between Blue Ball and Pink Ball
-      const isBlueBall = categoryA === CATEGORY.BLUE_BALL || categoryB === CATEGORY.BLUE_BALL;
-      const isPinkBall = categoryA === CATEGORY.PINK_BALL || categoryB === CATEGORY.PINK_BALL;
+    eventQueue.drainCollisionEvents((handle1, handle2, started) => {
+      if (!started) return; // Only process collision start events
 
-      if (isBlueBall && isPinkBall) {
-        const bodyA = fixtureA.getBody();
-        const bodyB = fixtureB.getBody();
-        const posA = bodyA.getPosition();
-        const posB = bodyB.getPosition();
-        const midX = (posA.x + posB.x) / 2;
-        const midY = (posA.y + posB.y) / 2;
+      const ball1 = this.ballColliderHandles.get(handle1);
+      const ball2 = this.ballColliderHandles.get(handle2);
+
+      // Check if both colliders are balls (blue and pink)
+      if (ball1 && ball2) {
+        // Get positions for effect
+        const pos1 = ball1.body.translation();
+        const pos2 = ball2.body.translation();
+        const midX = (pos1.x + pos2.x) / 2;
+        const midY = (pos1.y + pos2.y) / 2;
 
         const pixelPos = this.physicsWorld.toPixels(midX, midY);
         this.handleWin(pixelPos.x, pixelPos.y);
@@ -385,7 +367,6 @@ export class Game {
 
       if (x < bounds.minX || x > bounds.maxX || y > bounds.maxY) {
         let color = BALL_COLORS.blue;
-        // Assuming balls[0] is blue, balls[1] is pink as per loadLevel
         if (this.balls.indexOf(ball) === 1) color = BALL_COLORS.pink;
 
         this.handleLoss(x, y, color);
@@ -398,11 +379,10 @@ export class Game {
     console.log('Game Won!');
     this.gameState = GameState.WON;
 
-    // Clamp position to screen bounds
     const clampedX = Math.max(0, Math.min(x, GAME_WIDTH));
     const clampedY = Math.max(0, Math.min(y, GAME_HEIGHT));
 
-    this.effectManager.createRingExplosion(clampedX, clampedY, 0xFFD700, 1); // Gold
+    this.effectManager.createRingExplosion(clampedX, clampedY, 0xFFD700, 1);
 
     setTimeout(() => {
       this.restartLevel();
@@ -413,7 +393,6 @@ export class Game {
     console.log('Game Lost!');
     this.gameState = GameState.LOST;
 
-    // Clamp position to screen bounds
     const clampedX = Math.max(0, Math.min(x, GAME_WIDTH));
     const clampedY = Math.max(0, Math.min(y, GAME_HEIGHT));
 
@@ -432,8 +411,11 @@ export class Game {
     if (this.gameState !== GameState.PLAYING) return;
 
     // Step physics world
-    const dt = ticker.deltaMS / 1000; // Convert to seconds
-    this.physicsWorld.step(Math.min(dt, 1 / 30)); // Cap at 30 FPS physics
+    const dt = ticker.deltaMS / 1000;
+    this.physicsWorld.step(Math.min(dt, 1 / 30));
+
+    // Process collision events
+    this.processCollisions();
 
     this.checkBoundaries();
 
@@ -459,17 +441,14 @@ export class Game {
   private createBackground(): void {
     const gridGraphics = new PIXI.Graphics();
 
-    // Calculate offsets to center the grid
     const startX = (GAME_WIDTH / 2) % GRID_SIZE;
     const startY = (GAME_HEIGHT / 2) % GRID_SIZE;
 
-    // Draw vertical lines
     for (let x = startX; x <= GAME_WIDTH; x += GRID_SIZE) {
       gridGraphics.moveTo(x, 0);
       gridGraphics.lineTo(x, GAME_HEIGHT);
     }
 
-    // Draw horizontal lines
     for (let y = startY; y <= GAME_HEIGHT; y += GRID_SIZE) {
       gridGraphics.moveTo(0, y);
       gridGraphics.lineTo(GAME_WIDTH, y);
@@ -477,7 +456,6 @@ export class Game {
 
     gridGraphics.stroke({ width: 1, color: GRID_COLOR });
 
-    // Add to container at the bottom
     this.gameContainer.addChildAt(gridGraphics, 0);
   }
 

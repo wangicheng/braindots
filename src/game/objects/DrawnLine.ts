@@ -4,7 +4,7 @@
  */
 
 import * as PIXI from 'pixi.js';
-import { Body, Box, Circle, Vec2 } from 'planck';
+import RAPIER from '@dimforge/rapier2d-compat';
 import {
   SCALE,
   LINE_COLOR,
@@ -12,18 +12,21 @@ import {
   LINE_DENSITY,
   LINE_FRICTION,
   LINE_RESTITUTION,
-  CATEGORY,
+  COLLISION_GROUP,
 } from '../config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { Point } from '../utils/douglasPeucker';
 
 export class DrawnLine {
   public graphics: PIXI.Graphics;
-  public body: Body;
+  public body: RAPIER.RigidBody;
+  public colliders: RAPIER.Collider[] = [];
   private points: Point[];
+  private physicsWorld: PhysicsWorld;
 
   constructor(physicsWorld: PhysicsWorld, points: Point[]) {
     this.points = points;
+    this.physicsWorld = physicsWorld;
 
     // Calculate centroid for body position
     const centroid = this.calculateCentroid(points);
@@ -33,15 +36,17 @@ export class DrawnLine {
     this.drawLine(centroid);
     this.graphics.position.set(centroid.x, centroid.y);
 
-    // Create Planck.js dynamic body
+    // Convert to physics coordinates
     const physicsPos = physicsWorld.toPhysics(centroid.x, centroid.y);
+    const R = physicsWorld.getRAPIER();
 
-    this.body = physicsWorld.getWorld().createBody({
-      type: 'dynamic',
-      position: physicsPos,
-    });
+    // Create Rapier dynamic body
+    const rigidBodyDesc = R.RigidBodyDesc.dynamic()
+      .setTranslation(physicsPos.x, physicsPos.y);
 
-    // Create physics fixtures for each segment
+    this.body = physicsWorld.getWorld().createRigidBody(rigidBodyDesc);
+
+    // Create physics colliders for each segment
     this.createPhysicsSegments(centroid);
   }
 
@@ -95,9 +100,11 @@ export class DrawnLine {
   }
 
   /**
-   * Create physics box fixtures for each line segment
+   * Create physics colliders for each line segment
    */
   private createPhysicsSegments(centroid: Point): void {
+    const world = this.physicsWorld.getWorld();
+    const R = this.physicsWorld.getRAPIER();
     const halfWidth = (LINE_WIDTH / 2) / SCALE;
 
     for (let i = 0; i < this.points.length - 1; i++) {
@@ -121,21 +128,17 @@ export class DrawnLine {
       const centerX = (x1 + x2) / 2;
       const centerY = (y1 + y2) / 2;
 
-      // Create a box shape for this segment
-      const boxShape = Box(
-        length / 2,
-        halfWidth,
-        Vec2(centerX, centerY),
-        angle
-      );
+      // Create a cuboid collider for this segment
+      const colliderDesc = R.ColliderDesc.cuboid(length / 2, halfWidth)
+        .setTranslation(centerX, centerY)
+        .setRotation(angle)
+        .setDensity(LINE_DENSITY)
+        .setFriction(LINE_FRICTION)
+        .setRestitution(LINE_RESTITUTION)
+        .setCollisionGroups(COLLISION_GROUP.USER_LINE);
 
-      this.body.createFixture({
-        shape: boxShape,
-        density: LINE_DENSITY,
-        friction: LINE_FRICTION,
-        restitution: LINE_RESTITUTION,
-        filterCategoryBits: CATEGORY.USER_LINE,
-      });
+      const collider = world.createCollider(colliderDesc, this.body);
+      this.colliders.push(collider);
     }
 
     // Add circles at each point for smooth joints
@@ -143,15 +146,15 @@ export class DrawnLine {
       const x = (point.x - centroid.x) / SCALE;
       const y = -(point.y - centroid.y) / SCALE;
 
-      const circleShape = Circle(Vec2(x, y), halfWidth);
+      const colliderDesc = R.ColliderDesc.ball(halfWidth)
+        .setTranslation(x, y)
+        .setDensity(LINE_DENSITY)
+        .setFriction(LINE_FRICTION)
+        .setRestitution(LINE_RESTITUTION)
+        .setCollisionGroups(COLLISION_GROUP.USER_LINE);
 
-      this.body.createFixture({
-        shape: circleShape,
-        density: LINE_DENSITY,
-        friction: LINE_FRICTION,
-        restitution: LINE_RESTITUTION,
-        filterCategoryBits: CATEGORY.USER_LINE,
-      });
+      const collider = world.createCollider(colliderDesc, this.body);
+      this.colliders.push(collider);
     }
   }
 
@@ -159,8 +162,8 @@ export class DrawnLine {
    * Update graphics position from physics body
    */
   update(): void {
-    const pos = this.body.getPosition();
-    const angle = this.body.getAngle();
+    const pos = this.body.translation();
+    const angle = this.body.rotation();
 
     // Convert physics coordinates to pixel coordinates
     this.graphics.position.x = pos.x * SCALE;
@@ -172,7 +175,7 @@ export class DrawnLine {
    * Destroy the line
    */
   destroy(physicsWorld: PhysicsWorld): void {
-    physicsWorld.getWorld().destroyBody(this.body);
+    physicsWorld.getWorld().removeRigidBody(this.body);
     this.graphics.destroy();
   }
 }
