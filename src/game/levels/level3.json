@@ -1,0 +1,36 @@
+{
+  "id": "level-03",
+  "balls": {
+    "blue": {
+      "x": 360,
+      "y": 250
+    },
+    "pink": {
+      "x": 920,
+      "y": 250
+    }
+  },
+  "obstacles": [
+    {
+      "type": "rectangle",
+      "x": 640,
+      "y": 500,
+      "width": 900,
+      "height": 50
+    }
+  ],
+  "nets": [
+    {
+      "x": 0,
+      "y": 0,
+      "width": 500,
+      "height": 720
+    },
+    {
+      "x": 780,
+      "y": 0,
+      "width": 500,
+      "height": 720
+    }
+  ]
+}

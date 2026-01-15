@@ -1,0 +1,38 @@
+{
+  "id": "level-04",
+  "balls": {
+    "blue": {
+      "x": 640,
+      "y": 630
+    },
+    "pink": {
+      "x": 640,
+      "y": 530
+    }
+  },
+  "obstacles": [
+    {
+      "x": 640,
+      "y": 690,
+      "width": 1280,
+      "height": 70,
+      "angle": 0
+    },
+    {
+      "x": 640,
+      "y": 560,
+      "width": 1280,
+      "height": 10,
+      "angle": 0
+    }
+  ],
+  "fallingObjects": [
+    {
+      "x": 640,
+      "y": 100,
+      "width": 200,
+      "height": 100,
+      "angle": 0
+    }
+  ]
+}
