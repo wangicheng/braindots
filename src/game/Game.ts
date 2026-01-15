@@ -48,6 +48,7 @@ export class Game {
   private currentLevelIndex: number = 0;
   private effectManager: EffectManager;
   private gameState: GameState = GameState.READY;
+  private autoRestartTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Collision handle mapping for ball detection
   private ballColliderHandles: Map<number, Ball> = new Map();
@@ -201,6 +202,11 @@ export class Game {
    * Clear current level objects
    */
   private clearLevel(): void {
+    if (this.autoRestartTimeout) {
+      clearTimeout(this.autoRestartTimeout);
+      this.autoRestartTimeout = null;
+    }
+
     // Clear balls
     for (const ball of this.balls) {
       ball.destroy(this.physicsWorld);
@@ -384,7 +390,7 @@ export class Game {
 
     this.effectManager.createRingExplosion(clampedX, clampedY, 0xFFD700, 1);
 
-    setTimeout(() => {
+    this.autoRestartTimeout = setTimeout(() => {
       this.restartLevel();
     }, 2000);
   }
@@ -398,7 +404,7 @@ export class Game {
 
     this.effectManager.createRingExplosion(clampedX, clampedY, color, 1);
 
-    setTimeout(() => {
+    this.autoRestartTimeout = setTimeout(() => {
       this.restartLevel();
     }, 2000);
   }
