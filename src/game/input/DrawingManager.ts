@@ -21,6 +21,7 @@ export class DrawingManager {
   private isDrawing = false;
   private isValidStart = false;
   private onLineComplete: ((points: Point[]) => void) | null = null;
+  private onDrawingEnd: (() => void) | null = null;
   private collisionProvider: CollisionProvider | null = null;
 
   constructor(stage: PIXI.Container) {
@@ -35,8 +36,9 @@ export class DrawingManager {
   /**
    * Enable drawing on the specified container
    */
-  enable(interactionArea: PIXI.Container, callback: (points: Point[]) => void): void {
+  enable(interactionArea: PIXI.Container, callback: (points: Point[]) => void, onDrawingEnd?: () => void): void {
     this.onLineComplete = callback;
+    this.onDrawingEnd = onDrawingEnd || null;
 
     interactionArea.eventMode = 'static';
     interactionArea.cursor = 'crosshair';
@@ -167,6 +169,11 @@ export class DrawingManager {
       if (simplifiedPoints.length >= 1 && this.onLineComplete) {
         this.onLineComplete(simplifiedPoints);
       }
+    }
+
+    // Notify that drawing attempt has ended (regardless of whether a line was created)
+    if (this.onDrawingEnd) {
+      this.onDrawingEnd();
     }
 
     this.currentPoints = [];

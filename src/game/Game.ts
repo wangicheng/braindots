@@ -313,7 +313,23 @@ export class Game {
    */
   private setupDrawing(): void {
     this.drawingManager = new DrawingManager(this.gameContainer);
-    this.drawingManager.enable(this.interactionArea, this.onLineDrawn.bind(this));
+    this.drawingManager.enable(
+      this.interactionArea,
+      this.onLineDrawn.bind(this),
+      this.startGame.bind(this)
+    );
+  }
+
+  /**
+   * Start the game simulation
+   */
+  private startGame(): void {
+    if (!this.hasStarted) {
+      this.hasStarted = true;
+      this.gameState = GameState.PLAYING;
+      this.balls.forEach(ball => ball.activate());
+      this.fallingObjects.forEach(obj => obj.activate());
+    }
   }
 
   /**
@@ -324,13 +340,8 @@ export class Game {
     this.drawnLines.push(line);
     this.gameContainer.addChild(line.graphics);
 
-    // Start game if not started
-    if (!this.hasStarted) {
-      this.hasStarted = true;
-      this.gameState = GameState.PLAYING;
-      this.balls.forEach(ball => ball.activate());
-      this.fallingObjects.forEach(obj => obj.activate());
-    }
+    // Start game if not started (redundant with onDrawingEnd but safe)
+    this.startGame();
   }
 
   /**
