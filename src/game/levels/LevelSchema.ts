@@ -57,6 +57,13 @@ export interface IceBlockConfig {
   angle?: number; // Degrees
 }
 
+export interface LaserConfig {
+  x1: number; // Start point X
+  y1: number; // Start point Y
+  x2: number; // End point X
+  y2: number; // End point Y
+}
+
 export interface LevelData {
   id: string;
   balls: {
@@ -67,4 +74,5 @@ export interface LevelData {
   fallingObjects?: FallingObjectConfig[];
   nets?: NetConfig[];
   iceBlocks?: IceBlockConfig[];
+  lasers?: LaserConfig[];
 }

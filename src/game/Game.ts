@@ -11,6 +11,7 @@ import { FallingObject } from './objects/FallingObject';
 import { DrawnLine } from './objects/DrawnLine';
 import { Net } from './objects/Net';
 import { IceBlock } from './objects/IceBlock';
+import { Laser } from './objects/Laser';
 import { DrawingManager } from './input/DrawingManager';
 import { LevelManager } from './levels/LevelManager';
 import type { Point } from './utils/douglasPeucker';
@@ -43,6 +44,7 @@ export class Game {
   private fallingObjects: FallingObject[] = [];
   private nets: Net[] = [];
   private iceBlocks: IceBlock[] = [];
+  private lasers: Laser[] = [];
   private drawnLines: DrawnLine[] = [];
   private drawingManager: DrawingManager | null = null;
   private gameContainer: PIXI.Container;
@@ -56,6 +58,10 @@ export class Game {
   // Collision handle mapping for ball detection
   private ballColliderHandles: Map<number, Ball> = new Map();
   private iceBlockColliderHandles: Map<number, IceBlock> = new Map();
+  private laserColliderHandles: Map<number, Laser> = new Map();
+
+  // Laser texture (loaded once, shared by all lasers)
+  private laserTexture: PIXI.Texture | null = null;
 
   constructor() {
     this.app = new PIXI.Application();
@@ -85,6 +91,7 @@ export class Game {
 
     // Load assets
     await PIXI.Assets.load('/object_ami.png');
+    this.laserTexture = await PIXI.Assets.load('/laser.png');
 
     console.log('Pixi initialized, adding canvas...');
     // Add canvas to DOM
@@ -193,6 +200,16 @@ export class Game {
       }
     }
 
+    // Spawn Lasers
+    if (levelData.lasers && this.laserTexture) {
+      for (const config of levelData.lasers) {
+        const laser = new Laser(this.physicsWorld, config, this.laserTexture);
+        this.lasers.push(laser);
+        this.gameContainer.addChild(laser.graphics);
+        this.laserColliderHandles.set(laser.getColliderHandle(), laser);
+      }
+    }
+
     // Force update of physics query acceleration structures
     // This is necessary because the game loop hasn't started stepping the world yet
     this.physicsWorld.getWorld().updateSceneQueries();
@@ -269,6 +286,13 @@ export class Game {
     }
     this.iceBlocks = [];
     this.iceBlockColliderHandles.clear();
+
+    // Clear lasers
+    for (const laser of this.lasers) {
+      laser.destroy(this.physicsWorld);
+    }
+    this.lasers = [];
+    this.laserColliderHandles.clear();
 
     if (this.drawingManager) {
       this.drawingManager.setCollisionProvider({
@@ -405,6 +429,21 @@ export class Game {
       if (iceBlock2 && !iceBlock2.getIsMelting()) {
         iceBlock2.startMelting();
       }
+
+      // Check for laser collisions with balls
+      const laser1 = this.laserColliderHandles.get(handle1);
+      const laser2 = this.laserColliderHandles.get(handle2);
+      const ballHitByLaser = (laser1 && ball2) || (laser2 && ball1);
+
+      if (ballHitByLaser) {
+        const hitBall = ball1 || ball2;
+        if (hitBall) {
+          const pos = hitBall.body.translation();
+          const pixelPos = this.physicsWorld.toPixels(pos.x, pos.y);
+          const color = BALL_COLORS[hitBall.type];
+          this.handleLoss(pixelPos.x, pixelPos.y, color);
+        }
+      }
     });
   }
 
@@ -462,11 +501,17 @@ export class Game {
    * Main game loop update
    */
   private update(ticker: PIXI.Ticker): void {
+    const dt = ticker.deltaMS / 1000;
+
+    // Update lasers (flip animation)
+    for (const laser of this.lasers) {
+      laser.update(dt);
+    }
+
     // Only update physics and game state if playing
     if (this.gameState !== GameState.PLAYING) return;
 
     // Step physics world
-    const dt = ticker.deltaMS / 1000;
     this.physicsWorld.step(Math.min(dt, 1 / 30));
 
     // Process collision events
@@ -499,6 +544,7 @@ export class Game {
         this.iceBlocks.splice(i, 1);
       }
     }
+
   }
 
   /**

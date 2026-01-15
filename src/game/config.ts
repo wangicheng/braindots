@@ -78,6 +78,7 @@ export const COLLISION_GROUP = {
   FALLING_OBJECT: 0x0040_FFFF,  // Group 6, collides with all
   NET: 0x0080_FFFF,             // Group 7, sensor that detects everything (so queries can find it)
   ICE_BLOCK: 0x0100_FFFF,       // Group 8, collides with all (for detection)
+  LASER: 0x0200_FFFF,           // Group 9, sensor for laser hazard detection
 };
 
 // Old CATEGORY export for backward compatibility (deprecated)

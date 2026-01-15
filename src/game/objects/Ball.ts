@@ -22,6 +22,7 @@ export class Ball {
   public graphics: PIXI.Graphics;
   public body: RAPIER.RigidBody;
   public collider: RAPIER.Collider;
+  public readonly type: BallType;
   private physicsWorld: PhysicsWorld;
   private readonly radius: number;
 
@@ -33,6 +34,7 @@ export class Ball {
     startActive: boolean = false
   ) {
     this.physicsWorld = physicsWorld;
+    this.type = type;
     this.radius = BALL_RADIUS;
 
     // Create Pixi.js graphics
