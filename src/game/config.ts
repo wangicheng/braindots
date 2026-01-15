@@ -38,6 +38,10 @@ export const FALLING_OBJECT_DENSITY = 1.0;
 export const FALLING_OBJECT_FRICTION = 0.1;
 export const FALLING_OBJECT_RESTITUTION = 0.0;
 
+// Ice Block settings
+export const ICE_BLOCK_COLOR = 0x83B0C9;
+export const ICE_BLOCK_ALPHA = 0.5;
+
 // Line drawing settings
 export const LINE_COLOR = 0x333333;
 export const LINE_WIDTH = 7; // pixels
@@ -73,6 +77,7 @@ export const COLLISION_GROUP = {
   OBSTACLE: 0x0020_FFFF,        // Group 5, collides with all
   FALLING_OBJECT: 0x0040_FFFF,  // Group 6, collides with all
   NET: 0x0080_0000,             // Group 7, collides with nothing (sensor only)
+  ICE_BLOCK: 0x0100_FFFF,       // Group 8, collides with all (for detection)
 };
 
 // Old CATEGORY export for backward compatibility (deprecated)

@@ -30,17 +30,6 @@ export interface ObstacleConfig {
   cap?: 'round' | 'square'; // Defaults to 'round' for c_shape
 }
 
-export interface LevelData {
-  id: string;
-  balls: {
-    blue: BallConfig;
-    pink: BallConfig;
-  };
-  obstacles: ObstacleConfig[];
-  fallingObjects?: FallingObjectConfig[];
-  nets?: NetConfig[];
-}
-
 export interface NetConfig {
   x: number;
   y: number;
@@ -57,4 +46,25 @@ export interface FallingObjectConfig {
   height?: number;
   radius?: number; // For circle
   angle?: number;
+}
+
+export interface IceBlockConfig {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  meltTime?: 1 | 2 | 3; // Default: 1 second
+  rotation?: number; // Degrees
+}
+
+export interface LevelData {
+  id: string;
+  balls: {
+    blue: BallConfig;
+    pink: BallConfig;
+  };
+  obstacles: ObstacleConfig[];
+  fallingObjects?: FallingObjectConfig[];
+  nets?: NetConfig[];
+  iceBlocks?: IceBlockConfig[];
 }

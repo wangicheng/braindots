@@ -10,6 +10,7 @@ import { Obstacle } from './objects/Obstacle';
 import { FallingObject } from './objects/FallingObject';
 import { DrawnLine } from './objects/DrawnLine';
 import { Net } from './objects/Net';
+import { IceBlock } from './objects/IceBlock';
 import { DrawingManager } from './input/DrawingManager';
 import { LevelManager } from './levels/LevelManager';
 import type { Point } from './utils/douglasPeucker';
@@ -40,6 +41,7 @@ export class Game {
   private obstacles: Obstacle[] = [];
   private fallingObjects: FallingObject[] = [];
   private nets: Net[] = [];
+  private iceBlocks: IceBlock[] = [];
   private drawnLines: DrawnLine[] = [];
   private drawingManager: DrawingManager | null = null;
   private gameContainer: PIXI.Container;
@@ -52,6 +54,7 @@ export class Game {
 
   // Collision handle mapping for ball detection
   private ballColliderHandles: Map<number, Ball> = new Map();
+  private iceBlockColliderHandles: Map<number, IceBlock> = new Map();
 
   constructor() {
     this.app = new PIXI.Application();
@@ -124,7 +127,7 @@ export class Game {
    * Load the first level
    */
   private async createGameObjects(): Promise<void> {
-    await this.loadLevel(0);
+    await this.loadLevel(4);
   }
 
   /**
@@ -176,6 +179,16 @@ export class Game {
         const net = new Net(netConfig);
         this.nets.push(net);
         this.gameContainer.addChild(net.graphics);
+      }
+    }
+
+    // Spawn Ice Blocks
+    if (levelData.iceBlocks) {
+      for (const config of levelData.iceBlocks) {
+        const iceBlock = new IceBlock(this.physicsWorld, config);
+        this.iceBlocks.push(iceBlock);
+        this.gameContainer.addChild(iceBlock.graphics);
+        this.iceBlockColliderHandles.set(iceBlock.getColliderHandle(), iceBlock);
       }
     }
 
@@ -251,6 +264,14 @@ export class Game {
       net.destroy();
     }
     this.nets = [];
+
+    // Clear ice blocks
+    for (const iceBlock of this.iceBlocks) {
+      iceBlock.destroy(this.physicsWorld);
+    }
+    this.iceBlocks = [];
+    this.iceBlockColliderHandles.clear();
+
     if (this.drawingManager) {
       this.drawingManager.setCollisionProvider({
         isPointValid: () => true,
@@ -374,6 +395,18 @@ export class Game {
         const pixelPos = this.physicsWorld.toPixels(midX, midY);
         this.handleWin(pixelPos.x, pixelPos.y);
       }
+
+      // Check for ice block collisions
+      const iceBlock1 = this.iceBlockColliderHandles.get(handle1);
+      const iceBlock2 = this.iceBlockColliderHandles.get(handle2);
+
+      // If one of the colliders is an ice block, start melting it
+      if (iceBlock1 && !iceBlock1.getIsMelting()) {
+        iceBlock1.startMelting();
+      }
+      if (iceBlock2 && !iceBlock2.getIsMelting()) {
+        iceBlock2.startMelting();
+      }
     });
   }
 
@@ -456,6 +489,17 @@ export class Game {
     // Update drawn lines graphics from physics
     for (const line of this.drawnLines) {
       line.update();
+    }
+
+    // Update ice blocks (handle melting and removal)
+    for (let i = this.iceBlocks.length - 1; i >= 0; i--) {
+      const iceBlock = this.iceBlocks[i];
+      if (iceBlock.update(dt)) {
+        // Ice block has fully melted
+        this.iceBlockColliderHandles.delete(iceBlock.getColliderHandle());
+        iceBlock.destroy(this.physicsWorld);
+        this.iceBlocks.splice(i, 1);
+      }
     }
   }
 
