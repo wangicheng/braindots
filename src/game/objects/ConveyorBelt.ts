@@ -38,7 +38,6 @@ export class ConveyorBelt {
   private readonly height: number;
   private readonly radius: number;
 
-
   constructor(physicsWorld: PhysicsWorld, config: ConveyorBeltConfig) {
     const {
       x, y, width, angle = 0,
@@ -46,7 +45,6 @@ export class ConveyorBelt {
     } = config;
 
     this.acceleration = acceleration;
-    // Default maxVelocity to 1x acceleration if not provided
     this.maxVelocity = config.maxVelocity ?? (Math.abs(acceleration) * CONVEYOR_BELT_VELOCITY_FACTOR);
 
     this.width = width;
@@ -85,23 +83,14 @@ export class ConveyorBelt {
 
     const physicsPos = physicsWorld.toPhysics(x, y);
 
-    // Create static rigid body
+    // Create Fixed Body (Immobile)
     const rigidBodyDesc = R.RigidBodyDesc.fixed()
       .setTranslation(physicsPos.x, physicsPos.y)
-      .setRotation(-angleRad); // Invert for Rapier coordinate system
+      .setRotation(-angleRad);
 
     this.body = world.createRigidBody(rigidBodyDesc);
 
-    // Create Capsule collider (replaces top/bottom sensors)
-    // Capsule: a segment of length 2*halfHeight aligned with Y axis (by default)
-    // We want it aligned with X axis (local).
-    // Width (straight part) = width
-    // Radius = height / 2 = radius
-    // Segment Length = width
-    // Half Segment Length = width / 2
-
-    // In Rapier JS, capsule(halfHeight, radius) creates a vertical capsule.
-    // To make it horizontal (X-axis aligned), we need to rotate it locally by 90 degrees.
+    // Create Capsule collider
     const halfSegmentLen = (width / 2) / SCALE;
     const capsuleRadius = this.radius / SCALE;
 
@@ -112,8 +101,6 @@ export class ConveyorBelt {
       .setRotation(Math.PI / 2) // Rotate 90 deg to align with X axis
       .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
 
-    // Note: We use one collider now. We can store it as 'topCollider' property for compatibility 
-    // or just 'collider'. Let's rename properties to 'collider' but keep public access for handle retrieval.
     this.topCollider = world.createCollider(colliderDesc, this.body);
   }
 
@@ -146,10 +133,6 @@ export class ConveyorBelt {
 
   /**
    * Draw a 6-tooth sprocket/gear
-   * - 6 Teeth, evenly distributed
-   * - Short, thick, flat-topped rectangular teeth
-   * - Root width = Tip width
-   * - Transparent central hole
    */
   private drawGear(g: PIXI.Graphics): void {
     const teeth = 6;
@@ -159,15 +142,10 @@ export class ConveyorBelt {
     const holeRadius = rootRadius * 0.45;   // Hole size
 
     const hw = toothWidth / 2;
-    // Calculate depth at root (distance from center to chord)
     const rootX = Math.sqrt(rootRadius * rootRadius - hw * hw);
-    // Angle offset for the half-width at the root circle
     const beta = Math.atan2(hw, rootX);
 
     g.clear();
-
-    // 1. Draw solid gear shape (Outer Contour)
-    // Start at the first tooth's leading edge on the root circle
     g.moveTo(rootX, -hw);
 
     for (let i = 0; i < teeth; i++) {
@@ -175,20 +153,14 @@ export class ConveyorBelt {
       const cos = Math.cos(theta);
       const sin = Math.sin(theta);
 
-      // Local coordinates of the rectangular tooth points
-      // P2: Tip Start, P3: Tip End, P4: Root End
       const p2 = { x: cos * outerRadius - sin * -hw, y: sin * outerRadius + cos * -hw };
       const p3 = { x: cos * outerRadius - sin * hw, y: sin * outerRadius + cos * hw };
       const p4 = { x: cos * rootX - sin * hw, y: sin * rootX + cos * hw };
 
-      // Draw the tooth
       g.lineTo(p2.x, p2.y);
       g.lineTo(p3.x, p3.y);
       g.lineTo(p4.x, p4.y);
 
-      // Draw the gap (arc to the next tooth start)
-      // Current angle at P4 is (theta + beta)
-      // Next tooth P1 is at (theta + step - beta)
       const startAngle = theta + beta;
       const endAngle = theta + (Math.PI * 2 / teeth) - beta;
 
@@ -196,8 +168,6 @@ export class ConveyorBelt {
     }
 
     g.fill({ color: CONVEYOR_BELT_COLOR });
-
-    // 2. Cut the central hole
     g.circle(0, 0, holeRadius);
     g.cut();
   }
@@ -207,7 +177,9 @@ export class ConveyorBelt {
    * @param deltaTime Time since last update in seconds
    */
   update(deltaTime: number): void {
-    // Rotate based on acceleration direction
+    // 1. No need to sync graphics position/rotation as it is Fixed
+
+    // 2. Rotate gears
     const direction = this.acceleration >= 0 ? 1 : -1;
     this.gearRotation += this.gearSpeed * direction * deltaTime;
 
@@ -228,7 +200,6 @@ export class ConveyorBelt {
   getColliderHandle(): number {
     return this.topCollider.handle;
   }
-
 
   /**
    * Clean up resources

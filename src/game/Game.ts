@@ -68,7 +68,7 @@ export class Game {
   private drawnLineColliderHandles: Map<number, DrawnLine> = new Map();
   private fallingObjectColliderHandles: Map<number, FallingObject> = new Map();
   private seesawColliderHandles: Map<number, Seesaw> = new Map();
-  private activeConveyorContacts: { body: RAPIER.RigidBody, conveyor: ConveyorBelt }[] = [];
+  private activeConveyorContacts: { body: RAPIER.RigidBody, objectColliderHandle: number, conveyor: ConveyorBelt }[] = [];
 
 
   // Laser texture (loaded once, shared by all lasers)
@@ -522,39 +522,43 @@ export class Game {
       const convSeesaw2 = this.seesawColliderHandles.get(handle2);
 
       // Identify the pair (conveyor + ball or line or falling object or seesaw)
-      let conveyorContact: { conv: ConveyorBelt, body: RAPIER.RigidBody } | null = null;
+      let conveyorContact: { conv: ConveyorBelt, body: RAPIER.RigidBody, objectColliderHandle: number } | null = null;
 
       if (conv1 && convBall2) {
-        conveyorContact = { conv: conv1, body: convBall2.body };
+        conveyorContact = { conv: conv1, body: convBall2.body, objectColliderHandle: handle2 };
       } else if (conv2 && convBall1) {
-        conveyorContact = { conv: conv2, body: convBall1.body };
+        conveyorContact = { conv: conv2, body: convBall1.body, objectColliderHandle: handle1 };
       } else if (conv1 && convLine2) {
-        conveyorContact = { conv: conv1, body: convLine2.body };
+        conveyorContact = { conv: conv1, body: convLine2.body, objectColliderHandle: handle2 };
       } else if (conv2 && convLine1) {
-        conveyorContact = { conv: conv2, body: convLine1.body };
+        conveyorContact = { conv: conv2, body: convLine1.body, objectColliderHandle: handle1 };
       } else if (conv1 && convFall2) {
-        conveyorContact = { conv: conv1, body: convFall2.body };
+        conveyorContact = { conv: conv1, body: convFall2.body, objectColliderHandle: handle2 };
       } else if (conv2 && convFall1) {
-        conveyorContact = { conv: conv2, body: convFall1.body };
+        conveyorContact = { conv: conv2, body: convFall1.body, objectColliderHandle: handle1 };
       } else if (conv1 && convSeesaw2) {
-        conveyorContact = { conv: conv1, body: convSeesaw2.plankBody };
+        conveyorContact = { conv: conv1, body: convSeesaw2.plankBody, objectColliderHandle: handle2 };
       } else if (conv2 && convSeesaw1) {
-        conveyorContact = { conv: conv2, body: convSeesaw1.plankBody };
+        conveyorContact = { conv: conv2, body: convSeesaw1.plankBody, objectColliderHandle: handle1 };
       }
 
       if (conveyorContact) {
         if (started) {
-          // Add contact (avoid duplicates for multi-collider bodies like DrawnLine)
+          // Add contact (avoid duplicates for exactly same pair)
           const exists = this.activeConveyorContacts.some(
-            c => c.body === conveyorContact!.body && c.conveyor === conveyorContact!.conv
+            c => c.objectColliderHandle === conveyorContact!.objectColliderHandle && c.conveyor === conveyorContact!.conv
           );
           if (!exists) {
-            this.activeConveyorContacts.push({ body: conveyorContact.body, conveyor: conveyorContact.conv });
+            this.activeConveyorContacts.push({
+              body: conveyorContact.body,
+              conveyor: conveyorContact.conv,
+              objectColliderHandle: conveyorContact.objectColliderHandle
+            });
           }
         } else {
           // Remove contact
           this.activeConveyorContacts = this.activeConveyorContacts.filter(
-            c => c.body !== conveyorContact!.body || c.conveyor !== conveyorContact!.conv
+            c => c.objectColliderHandle !== conveyorContact!.objectColliderHandle || c.conveyor !== conveyorContact!.conv
           );
         }
       }
@@ -581,44 +585,117 @@ export class Game {
   }
 
   /**
-   * Apply acceleration to a rigid body from a conveyor belt
-   * Uses F = m * a to ensure all objects get the same acceleration regardless of mass
-   * @param body The rigid body to accelerate
-   * @param conveyor The conveyor belt
-   * @param direction 1 for rightward (top), -1 for leftward (bottom)
-   * @param dt Time step in seconds
+   * Apply acceleration to a rigid body from a conveyor belt using accurate Contact Manifolds
+   * This ensures forces are applied at the exact contact points, producing correct torque and linear motion.
    */
-  private applyAcceleration(body: RAPIER.RigidBody, conveyor: ConveyorBelt, direction: number, dt: number): void {
-    const angle = conveyor.getAngle();
-    const acceleration = conveyor.acceleration * direction;
-    const maxVelocity = conveyor.maxVelocity;
+  private applyAcceleration(contact: { body: RAPIER.RigidBody, objectColliderHandle: number, conveyor: ConveyorBelt }, dt: number): void {
+    const { body, objectColliderHandle, conveyor } = contact;
+    const world = this.physicsWorld.getWorld();
 
-    // Calculate acceleration direction in world space (conveyor's local X axis)
-    const dirX = Math.cos(angle);
-    const dirY = -Math.sin(angle); // Negative because Rapier Y is inverted
-
-    // Get current velocity
-    const vel = body.linvel();
-
-    // Calculate velocity component in the acceleration direction
-    const velInDir = vel.x * dirX + vel.y * dirY;
-
-    // Determine if we should apply acceleration
-    // Only apply if velocity in that direction is below max
-    const effectiveMaxVel = maxVelocity * Math.sign(acceleration);
-    const shouldApply = acceleration > 0 ? velInDir < effectiveMaxVel : velInDir > effectiveMaxVel;
-
-    if (shouldApply) {
-      // Get mass of the body (F = m * a)
-      const mass = body.mass();
-
-      // Calculate force based on desired acceleration: F = m * a
-      const forceX = dirX * acceleration * mass;
-      const forceY = dirY * acceleration * mass;
-
-      // Apply impulse = Force * time
-      body.applyImpulse({ x: forceX * dt, y: forceY * dt }, true);
+    // Retrieve the specific collider for the object that is touching the conveyor
+    let objectCollider: RAPIER.Collider;
+    try {
+      objectCollider = world.getCollider(objectColliderHandle);
+    } catch (e) {
+      // Collider might have been removed
+      return;
     }
+
+    if (!objectCollider || !objectCollider.isValid()) return;
+
+    const conveyorCollider = conveyor.topCollider;
+
+    // Use Rapier's contactPair to access the manifold
+    world.contactPair(conveyorCollider, objectCollider, (manifold, flipped) => {
+      const numPoints = manifold.numContacts();
+      if (numPoints === 0) return;
+
+      const maxVelocity = conveyor.maxVelocity;
+      // Distribute force: F = m * a. We divide by numPoints to not overpower multiple contacts.
+      const forcePerPoint = (Math.abs(conveyor.acceleration) * body.mass()) / numPoints;
+
+      const dirSign = Math.sign(conveyor.acceleration) || 1;
+
+      // 2. Iterate all contact points
+      for (let i = 0; i < numPoints; i++) {
+        // Get local contact point
+        // If flipped=false: localPoint1 is on conveyor, localPoint2 on object
+        // If flipped=true: localPoint1 is on object, localPoint2 on conveyor
+        let localPt, refBody;
+
+        let normalX = 0;
+        let normalY = 0;
+
+        // Rapier manifold.normal() returns world space normal from Shape 1 to Shape 2
+        // We want the normal POINTING OUT of the Conveyor Surface.
+        const worldNormal = manifold.normal();
+
+        if (flipped) {
+          // Shape 1 = Object, Shape 2 = Conveyor. Normal: Object -> Conveyor (Into Conveyor)
+          // We want normal Out of Conveyor. So we invert it.
+          normalX = -worldNormal.x;
+          normalY = -worldNormal.y;
+
+          localPt = manifold.localContactPoint2(i);
+          refBody = conveyor.body;
+        } else {
+          // Shape 1 = Conveyor, Shape 2 = Object. Normal: Conveyor -> Object (Out of Conveyor)
+          // This is correct.
+          normalX = worldNormal.x;
+          normalY = worldNormal.y;
+
+          localPt = manifold.localContactPoint1(i);
+          refBody = conveyor.body;
+        }
+
+        if (!localPt) continue;
+
+        // Calculate Tangent Direction from Normal
+        // Rotate -90 degrees (Clockwise): (x, y) -> (y, -x)
+        let tangentX = normalY;
+        let tangentY = -normalX;
+
+        // Apply direction sign
+        tangentX *= dirSign;
+        tangentY *= dirSign;
+
+        // Transform local point to World Space manually
+        const refPos = refBody.translation();
+        const refRot = refBody.rotation();
+        const sin = Math.sin(refRot);
+        const cos = Math.cos(refRot);
+
+        const worldX = (localPt.x * cos - localPt.y * sin) + refPos.x;
+        const worldY = (localPt.x * sin + localPt.y * cos) + refPos.y;
+
+        // 3. Check Velocity at this Contact Point (Manual Calculation)
+        // v_point = v_com + w x r
+        // r = point - com
+        const bodyLinVel = body.linvel();
+        const bodyAngVel = body.angvel();
+        const bodyPos = body.translation();
+
+        // r vector from COM to contact point
+        const rx = worldX - bodyPos.x;
+        const ry = worldY - bodyPos.y;
+
+        // w x r = (-w * ry, w * rx) in 2D
+        const pointVelX = bodyLinVel.x - bodyAngVel * ry;
+        const pointVelY = bodyLinVel.y + bodyAngVel * rx;
+
+        // Project velocity onto the desired tangent direction
+        const currentTanVel = pointVelX * tangentX + pointVelY * tangentY;
+
+        // 4. Apply Force if below max velocity
+        if (currentTanVel < maxVelocity) {
+          // Apply impulse at center of mass (no torque)
+          const fx = tangentX * forcePerPoint * dt;
+          const fy = tangentY * forcePerPoint * dt;
+
+          body.applyImpulse({ x: fx, y: fy }, true);
+        }
+      }
+    });
   }
 
   private handleWin(x: number, y: number): void {
@@ -692,39 +769,7 @@ export class Game {
 
     // Apply continuous conveyor forces
     for (const contact of this.activeConveyorContacts) {
-      // Calculate local position of ball relative to conveyor to determine direction
-      // 1. Get conveyor transform
-      const accTranslation = contact.conveyor.body.translation();
-      const accRotation = contact.conveyor.body.rotation();
-
-      // 2. Get body translation
-      const bodyTranslation = contact.body.translation();
-
-      // 3. Transform body position to conveyor local space
-      const dx = bodyTranslation.x - accTranslation.x;
-      const dy = bodyTranslation.y - accTranslation.y;
-
-      // Rotate by negative conveyor angle to align with local axes
-      // Rapier rotation is CCW radians.
-      // We want to un-rotate.
-      const cos = Math.cos(-accRotation);
-      const sin = Math.sin(-accRotation);
-
-      // Local Point = InverseRot * (WorldPoint - Origin)
-      // localX = dx * cos - dy * sin
-      // localY = dx * sin + dy * cos
-      const localY = dx * sin + dy * cos;
-
-      // Determine direction: Top (accelerate right) or Bottom (accelerate left)
-      // In Rapier coordinate system (Y-up), positive localY means visually "above" the belt center.
-      // Visually "Top" in Pixi (Y-down) corresponds to positive Y in Rapier.
-      // Requirement: Top half -> Rightward (1).
-      // Requirement: Bottom half -> Leftward (-1).
-      // So: positive localY (Rapier top) -> direction 1 (right)
-
-      const direction = localY > 0 ? 1 : -1;
-
-      this.applyAcceleration(contact.body, contact.conveyor, direction, dt);
+      this.applyAcceleration(contact, dt);
     }
 
 

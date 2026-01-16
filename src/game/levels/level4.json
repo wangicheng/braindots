@@ -28,7 +28,7 @@
   ],
   "fallingObjects": [
     {
-      "x": 400,
+      "x": 200,
       "y": 340,
       "width": 300,
       "height": 50
@@ -36,59 +36,71 @@
   ],
   "conveyors": [
     {
-      "x": 340,
-      "y": 480,
+      "x": 200,
+      "y": 400,
       "width": 100,
-      "acceleration": 5,
+      "acceleration": 10
+    },
+    {
+      "x": 640,
+      "y": 200,
+      "width": 1000,
+      "acceleration": 10
+    },
+    {
+      "x": 340,
+      "y": 460,
+      "width": 100,
+      "acceleration": 10,
       "angle": 90
     },
     {
       "x": 420,
-      "y": 480,
+      "y": 460,
       "width": 100,
-      "acceleration": 5,
+      "acceleration": 10,
       "angle": 90
     },
     {
       "x": 500,
-      "y": 480,
+      "y": 460,
       "width": 100,
-      "acceleration": 5,
+      "acceleration": 10,
       "angle": 90
     },
     {
       "x": 580,
-      "y": 480,
+      "y": 460,
       "width": 100,
-      "acceleration": 5,
+      "acceleration": 10,
       "angle": 90
     },
     {
       "x": 660,
-      "y": 480,
+      "y": 460,
       "width": 100,
-      "acceleration": 5,
+      "acceleration": 10,
       "angle": 90
     },
     {
       "x": 740,
-      "y": 480,
+      "y": 460,
       "width": 100,
-      "acceleration": 5,
+      "acceleration": 10,
       "angle": 90
     },
     {
       "x": 820,
-      "y": 480,
+      "y": 460,
       "width": 100,
-      "acceleration": 5,
+      "acceleration": 10,
       "angle": 90
     },
     {
       "x": 900,
-      "y": 480,
+      "y": 460,
       "width": 100,
-      "acceleration": 5,
+      "acceleration": 10,
       "angle": 90
     }
   ]
