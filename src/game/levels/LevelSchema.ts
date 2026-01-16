@@ -64,6 +64,14 @@ export interface LaserConfig {
   y2: number; // End point Y
 }
 
+export interface SeesawConfig {
+  x: number;         // Center X
+  y: number;         // Center Y
+  width: number;     // Plank width
+  height: number;    // Plank height
+  angle?: number;    // Initial angle (degrees)
+}
+
 export interface LevelData {
   id: string;
   balls: {
@@ -75,4 +83,5 @@ export interface LevelData {
   nets?: NetConfig[];
   iceBlocks?: IceBlockConfig[];
   lasers?: LaserConfig[];
+  seesaws?: SeesawConfig[];
 }

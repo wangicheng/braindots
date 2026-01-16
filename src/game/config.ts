@@ -42,6 +42,16 @@ export const FALLING_OBJECT_RESTITUTION = 0.0;
 export const ICE_BLOCK_COLOR = 0x83B0C9;
 export const ICE_BLOCK_ALPHA = 0.5;
 
+// Seesaw settings
+export const SEESAW_COLOR = 0xC8C8C8;
+export const SEESAW_PIVOT_COLOR = 0x959595;
+export const SEESAW_DENSITY = 0.5;
+export const SEESAW_FRICTION = 0.5;
+export const SEESAW_RESTITUTION = 0.0;
+export const SEESAW_ANGULAR_DAMPING = 0.0;
+export const SEESAW_PIVOT_STIFFNESS = 1e4;  // Spring stiffness for soft pivot (higher = stiffer)
+export const SEESAW_PIVOT_DAMPING = 1e-2;     // Spring damping (higher = less oscillation)
+
 // Line drawing settings
 export const LINE_COLOR = 0x333333;
 export const LINE_WIDTH = 7; // pixels
@@ -79,6 +89,7 @@ export const COLLISION_GROUP = {
   NET: 0x0080_FFFF,             // Group 7, sensor that detects everything (so queries can find it)
   ICE_BLOCK: 0x0100_FFFF,       // Group 8, collides with all (for detection)
   LASER: 0x0200_FFFF,           // Group 9, sensor for laser hazard detection
+  SEESAW: 0x0400_FFFF,          // Group 10, collides with all (rotating plank)
 };
 
 // Old CATEGORY export for backward compatibility (deprecated)

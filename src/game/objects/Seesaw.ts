@@ -1,0 +1,176 @@
+import * as PIXI from 'pixi.js';
+import RAPIER from '@dimforge/rapier2d-compat';
+import {
+  SCALE,
+  SEESAW_COLOR,
+  SEESAW_PIVOT_COLOR,
+  SEESAW_DENSITY,
+  SEESAW_FRICTION,
+  SEESAW_RESTITUTION,
+  SEESAW_ANGULAR_DAMPING,
+  SEESAW_PIVOT_STIFFNESS,
+  SEESAW_PIVOT_DAMPING,
+  COLLISION_GROUP,
+} from '../config';
+import { PhysicsWorld } from '../physics/PhysicsWorld';
+import type { SeesawConfig } from '../levels/LevelSchema';
+
+export class Seesaw {
+  public graphics: PIXI.Container;
+  public plankGraphics: PIXI.Graphics;
+  public pivotGraphics: PIXI.Graphics;
+  public plankBody: RAPIER.RigidBody;
+  public pivotBody: RAPIER.RigidBody;
+  public anchorBody: RAPIER.RigidBody;
+  public collider: RAPIER.Collider;
+  public revoluteJoint: RAPIER.ImpulseJoint;
+  public springJoint: RAPIER.ImpulseJoint;
+
+  constructor(physicsWorld: PhysicsWorld, config: SeesawConfig) {
+
+    const { x, y, width, height, angle = 0 } = config;
+    const angleRad = (angle * Math.PI) / 180;
+
+    // Create main container
+    this.graphics = new PIXI.Container();
+
+    // Create Plank Graphics
+    this.plankGraphics = new PIXI.Graphics();
+    this.plankGraphics.rect(-width / 2, -height / 2, width, height);
+    this.plankGraphics.fill({ color: SEESAW_COLOR });
+
+    // Set initial position and rotation for plank
+    this.plankGraphics.position.set(x, y);
+    this.plankGraphics.rotation = angleRad;
+
+    // Create Pivot (Axis) Graphics
+    this.pivotGraphics = new PIXI.Graphics();
+    const pivotOuterRadius = Math.min(width, height) * 0.25;
+    const pivotInnerRadius = pivotOuterRadius * 0.5;
+
+    // Draw outer circle
+    this.pivotGraphics.circle(0, 0, pivotOuterRadius);
+    this.pivotGraphics.fill({ color: SEESAW_PIVOT_COLOR });
+
+    // Draw inner circle (gray background)
+    this.pivotGraphics.circle(0, 0, pivotInnerRadius);
+    this.pivotGraphics.fill({ color: 0xC8C8C8 });
+
+    // Pivot is fixed at the anchor position
+    this.pivotGraphics.position.set(x, y);
+
+    // Add children to container
+    // Add plank first, then pivot on top
+    this.graphics.addChild(this.plankGraphics);
+    this.graphics.addChild(this.pivotGraphics);
+
+    const world = physicsWorld.getWorld();
+    const R = physicsWorld.getRAPIER();
+
+    const physicsPos = physicsWorld.toPhysics(x, y);
+
+    // 1. Fixed anchor body (immovable reference point)
+    const anchorBodyDesc = R.RigidBodyDesc.fixed()
+      .setTranslation(physicsPos.x, physicsPos.y);
+    this.anchorBody = world.createRigidBody(anchorBodyDesc);
+
+    // 2. Dynamic pivot body (can move slightly, no gravity, very high mass)
+    const pivotBodyDesc = R.RigidBodyDesc.dynamic()
+      .setTranslation(physicsPos.x, physicsPos.y)
+      .setGravityScale(0);  // No gravity - damping controlled by spring joint
+    this.pivotBody = world.createRigidBody(pivotBodyDesc);
+
+    // Give pivot very high mass so it strongly resists movement
+    const pivotColliderDesc = R.ColliderDesc.ball(0.01)
+      .setDensity(10000.0)  // Extremely high density = high mass
+      .setCollisionGroups(0);
+    world.createCollider(pivotColliderDesc, this.pivotBody);
+
+    // 3. Spring joint: connects anchor to pivot (soft constraint)
+    const springJointData = R.JointData.spring(
+      0,  // rest length = 0 (want pivot at anchor position)
+      SEESAW_PIVOT_STIFFNESS,
+      SEESAW_PIVOT_DAMPING,
+      { x: 0, y: 0 },
+      { x: 0, y: 0 }
+    );
+    this.springJoint = world.createImpulseJoint(springJointData, this.anchorBody, this.pivotBody, true);
+
+    // 4. Dynamic plank body
+    const plankBodyDesc = R.RigidBodyDesc.dynamic()
+      .setTranslation(physicsPos.x, physicsPos.y)
+      .setRotation(-angleRad)
+      .setAngularDamping(SEESAW_ANGULAR_DAMPING);
+    this.plankBody = world.createRigidBody(plankBodyDesc);
+
+    // Create collider for the plank
+    const colliderDesc = R.ColliderDesc.cuboid(
+      (width / 2) / SCALE,
+      (height / 2) / SCALE
+    )
+      .setDensity(SEESAW_DENSITY)
+      .setFriction(SEESAW_FRICTION)
+      .setRestitution(SEESAW_RESTITUTION)
+      .setCollisionGroups(COLLISION_GROUP.SEESAW);
+
+    this.collider = world.createCollider(colliderDesc, this.plankBody);
+
+    // 5. Revolute joint: connects pivot to plank (allows rotation)
+    const revoluteJointData = R.JointData.revolute(
+      { x: 0, y: 0 },
+      { x: 0, y: 0 }
+    );
+    this.revoluteJoint = world.createImpulseJoint(revoluteJointData, this.pivotBody, this.plankBody, true);
+  }
+
+  /**
+   * Apply extra damping for small oscillations to help convergence
+   */
+  applyForces(): void {
+    const vel = this.pivotBody.linvel();
+    const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+
+    // Apply extra "static friction" style damping when speed is low
+    // This helps small oscillations die out faster
+    const lowSpeedThreshold = 10;
+    if (speed > 0.001 && speed < lowSpeedThreshold) {
+      // Stronger damping factor for low speeds (inversely proportional to speed)
+      const extraDampingFactor = 30.0 * (1 - speed / lowSpeedThreshold);
+      const dampingForceX = -extraDampingFactor * vel.x;
+      const dampingForceY = -extraDampingFactor * vel.y;
+
+      this.pivotBody.addForce({ x: dampingForceX, y: dampingForceY }, true);
+    }
+  }
+
+  /**
+   * Update graphics from physics
+   */
+  update(): void {
+    const pos = this.plankBody.translation();
+    const angle = this.plankBody.rotation();
+
+    // Convert physics coordinates to pixel coordinates
+    // We only update the plank graphics
+    this.plankGraphics.position.x = pos.x * SCALE;
+    this.plankGraphics.position.y = -pos.y * SCALE;
+    this.plankGraphics.rotation = -angle;
+
+    // Pivot graphics remain fixed at the anchor position (set in constructor)
+  }
+
+  destroy(physicsWorld: PhysicsWorld): void {
+    const world = physicsWorld.getWorld();
+
+    // Remove joints first
+    world.removeImpulseJoint(this.revoluteJoint, true);
+    world.removeImpulseJoint(this.springJoint, true);
+
+    // Remove bodies
+    world.removeRigidBody(this.plankBody);
+    world.removeRigidBody(this.pivotBody);
+    world.removeRigidBody(this.anchorBody);
+
+    this.graphics.destroy({ children: true });
+  }
+}

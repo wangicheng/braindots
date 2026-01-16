@@ -12,6 +12,7 @@ import { DrawnLine } from './objects/DrawnLine';
 import { Net } from './objects/Net';
 import { IceBlock } from './objects/IceBlock';
 import { Laser } from './objects/Laser';
+import { Seesaw } from './objects/Seesaw';
 import { DrawingManager } from './input/DrawingManager';
 import { LevelManager } from './levels/LevelManager';
 import type { Point } from './utils/douglasPeucker';
@@ -45,6 +46,7 @@ export class Game {
   private nets: Net[] = [];
   private iceBlocks: IceBlock[] = [];
   private lasers: Laser[] = [];
+  private seesaws: Seesaw[] = [];
   private drawnLines: DrawnLine[] = [];
   private drawingManager: DrawingManager | null = null;
   private gameContainer: PIXI.Container;
@@ -135,7 +137,7 @@ export class Game {
    * Load the first level
    */
   private async createGameObjects(): Promise<void> {
-    await this.loadLevel(4);
+    await this.loadLevel(3);
   }
 
   /**
@@ -207,6 +209,15 @@ export class Game {
         this.lasers.push(laser);
         this.gameContainer.addChild(laser.graphics);
         this.laserColliderHandles.set(laser.getColliderHandle(), laser);
+      }
+    }
+
+    // Spawn Seesaws
+    if (levelData.seesaws) {
+      for (const config of levelData.seesaws) {
+        const seesaw = new Seesaw(this.physicsWorld, config);
+        this.seesaws.push(seesaw);
+        this.gameContainer.addChild(seesaw.graphics);
       }
     }
 
@@ -293,6 +304,12 @@ export class Game {
     }
     this.lasers = [];
     this.laserColliderHandles.clear();
+
+    // Clear seesaws
+    for (const seesaw of this.seesaws) {
+      seesaw.destroy(this.physicsWorld);
+    }
+    this.seesaws = [];
 
     if (this.drawingManager) {
       this.drawingManager.setCollisionProvider({
@@ -534,6 +551,11 @@ export class Game {
     // Only update physics and game state if playing
     if (this.gameState !== GameState.PLAYING) return;
 
+    // Apply seesaw spring forces BEFORE physics step
+    for (const seesaw of this.seesaws) {
+      seesaw.applyForces();
+    }
+
     // Step physics world
     this.physicsWorld.step(Math.min(dt, 1 / 30));
 
@@ -566,6 +588,11 @@ export class Game {
         iceBlock.destroy(this.physicsWorld);
         this.iceBlocks.splice(i, 1);
       }
+    }
+
+    // Update seesaws graphics from physics
+    for (const seesaw of this.seesaws) {
+      seesaw.update();
     }
 
   }
