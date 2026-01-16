@@ -29,7 +29,7 @@ export class PhysicsWorld {
     // Create physics world with gravity
     // Note: Rapier uses Y-up coordinate system, so negative Y is down
     this.world = new RAPIER.World({ x: 0, y: GRAVITY });
-    this.eventQueue = new RAPIER.EventQueue(true);
+    this.eventQueue = new RAPIER.EventQueue(false);
 
     console.log('Rapier.js initialized successfully');
   }

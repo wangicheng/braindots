@@ -52,6 +52,14 @@ export const SEESAW_ANGULAR_DAMPING = 0.0;
 export const SEESAW_PIVOT_STIFFNESS = 1e4;  // Spring stiffness for soft pivot (higher = stiffer)
 export const SEESAW_PIVOT_DAMPING = 1e-2;     // Spring damping (higher = less oscillation)
 
+// Conveyor Belt settings
+export const CONVEYOR_BELT_COLOR = 0xA9A9A9;
+export const CONVEYOR_BELT_HEIGHT = 60;         // Fixed height in pixels
+export const CONVEYOR_BELT_ACCELERATION = 15;   // Acceleration in physics units (m/s²) - all objects get same acceleration
+export const CONVEYOR_BELT_VELOCITY_FACTOR = 1.0; // Max velocity = |acceleration| * this factor (default)
+export const CONVEYOR_BELT_GEAR_SPEED_FACTOR = 1.0; // Gear rotation speed = |acceleration| × factor
+export const CONVEYOR_BELT_FRICTION = 0.0;      // Friction for conveyor belt
+
 // Line drawing settings
 export const LINE_COLOR = 0x333333;
 export const LINE_WIDTH = 7; // pixels
@@ -90,6 +98,7 @@ export const COLLISION_GROUP = {
   ICE_BLOCK: 0x0100_FFFF,       // Group 8, collides with all (for detection)
   LASER: 0x0200_FFFF,           // Group 9, sensor for laser hazard detection
   SEESAW: 0x0400_FFFF,          // Group 10, collides with all (rotating plank)
+  CONVEYOR_BELT: 0x0800_FFFF,   // Group 11, sensor for conveyor belt
 };
 
 // Old CATEGORY export for backward compatibility (deprecated)

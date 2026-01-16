@@ -4,6 +4,7 @@
  */
 
 import * as PIXI from 'pixi.js';
+import RAPIER from '@dimforge/rapier2d-compat';
 import { PhysicsWorld } from './physics/PhysicsWorld';
 import { Ball } from './objects/Ball';
 import { Obstacle } from './objects/Obstacle';
@@ -13,6 +14,7 @@ import { Net } from './objects/Net';
 import { IceBlock } from './objects/IceBlock';
 import { Laser } from './objects/Laser';
 import { Seesaw } from './objects/Seesaw';
+import { ConveyorBelt } from './objects/ConveyorBelt';
 import { DrawingManager } from './input/DrawingManager';
 import { LevelManager } from './levels/LevelManager';
 import type { Point } from './utils/douglasPeucker';
@@ -47,6 +49,7 @@ export class Game {
   private iceBlocks: IceBlock[] = [];
   private lasers: Laser[] = [];
   private seesaws: Seesaw[] = [];
+  private conveyors: ConveyorBelt[] = [];
   private drawnLines: DrawnLine[] = [];
   private drawingManager: DrawingManager | null = null;
   private gameContainer: PIXI.Container;
@@ -61,6 +64,12 @@ export class Game {
   private ballColliderHandles: Map<number, Ball> = new Map();
   private iceBlockColliderHandles: Map<number, IceBlock> = new Map();
   private laserColliderHandles: Map<number, Laser> = new Map();
+  private conveyorHandles: Map<number, ConveyorBelt> = new Map();
+  private drawnLineColliderHandles: Map<number, DrawnLine> = new Map();
+  private fallingObjectColliderHandles: Map<number, FallingObject> = new Map();
+  private seesawColliderHandles: Map<number, Seesaw> = new Map();
+  private activeConveyorContacts: { body: RAPIER.RigidBody, conveyor: ConveyorBelt }[] = [];
+
 
   // Laser texture (loaded once, shared by all lasers)
   private laserTexture: PIXI.Texture | null = null;
@@ -180,6 +189,7 @@ export class Game {
         const fallingObj = new FallingObject(this.physicsWorld, obj, false);
         this.fallingObjects.push(fallingObj);
         this.gameContainer.addChild(fallingObj.graphics);
+        this.fallingObjectColliderHandles.set(fallingObj.getColliderHandle(), fallingObj);
       }
     }
 
@@ -218,6 +228,17 @@ export class Game {
         const seesaw = new Seesaw(this.physicsWorld, config);
         this.seesaws.push(seesaw);
         this.gameContainer.addChild(seesaw.graphics);
+        this.seesawColliderHandles.set(seesaw.getColliderHandle(), seesaw);
+      }
+    }
+
+    // Spawn Conveyor Belts
+    if (levelData.conveyors) {
+      for (const config of levelData.conveyors) {
+        const conveyor = new ConveyorBelt(this.physicsWorld, config);
+        this.conveyors.push(conveyor);
+        this.gameContainer.addChild(conveyor.graphics);
+        this.conveyorHandles.set(conveyor.getColliderHandle(), conveyor);
       }
     }
 
@@ -279,6 +300,7 @@ export class Game {
       obj.destroy(this.physicsWorld);
     }
     this.fallingObjects = [];
+    this.fallingObjectColliderHandles.clear();
 
     // Reset game state
     this.hasStarted = false;
@@ -310,6 +332,17 @@ export class Game {
       seesaw.destroy(this.physicsWorld);
     }
     this.seesaws = [];
+    this.seesawColliderHandles.clear();
+
+    // Clear conveyor belts
+    for (const conveyor of this.conveyors) {
+      conveyor.destroy(this.physicsWorld);
+    }
+    this.conveyors = [];
+    this.conveyorHandles.clear();
+    this.activeConveyorContacts = [];
+
+
 
     if (this.drawingManager) {
       this.drawingManager.setCollisionProvider({
@@ -323,6 +356,7 @@ export class Game {
       line.destroy(this.physicsWorld);
     }
     this.drawnLines = [];
+    this.drawnLineColliderHandles.clear();
   }
 
   /**
@@ -356,6 +390,11 @@ export class Game {
     const line = new DrawnLine(this.physicsWorld, points);
     this.drawnLines.push(line);
     this.gameContainer.addChild(line.graphics);
+
+    // Register all colliders for conveyor detection
+    for (const collider of line.colliders) {
+      this.drawnLineColliderHandles.set(collider.handle, line);
+    }
 
     // Start game if not started (redundant with onDrawingEnd but safe)
     this.startGame();
@@ -429,44 +468,94 @@ export class Game {
     const eventQueue = this.physicsWorld.getEventQueue();
 
     eventQueue.drainCollisionEvents((handle1, handle2, started) => {
-      if (!started) return; // Only process collision start events
+      if (started) {
+        const ball1 = this.ballColliderHandles.get(handle1);
+        const ball2 = this.ballColliderHandles.get(handle2);
 
-      const ball1 = this.ballColliderHandles.get(handle1);
-      const ball2 = this.ballColliderHandles.get(handle2);
+        // Check if both colliders are balls (blue and pink)
+        if (ball1 && ball2) {
+          // Get positions for effect
+          const pos1 = ball1.body.translation();
+          const pos2 = ball2.body.translation();
+          const midX = (pos1.x + pos2.x) / 2;
+          const midY = (pos1.y + pos2.y) / 2;
 
-      // Check if both colliders are balls (blue and pink)
-      if (ball1 && ball2) {
-        // Get positions for effect
-        const pos1 = ball1.body.translation();
-        const pos2 = ball2.body.translation();
-        const midX = (pos1.x + pos2.x) / 2;
-        const midY = (pos1.y + pos2.y) / 2;
+          const pixelPos = this.physicsWorld.toPixels(midX, midY);
+          this.handleWin(pixelPos.x, pixelPos.y);
+        }
 
-        const pixelPos = this.physicsWorld.toPixels(midX, midY);
-        this.handleWin(pixelPos.x, pixelPos.y);
+        // Check for ice block collisions
+        const iceBlock1 = this.iceBlockColliderHandles.get(handle1);
+        const iceBlock2 = this.iceBlockColliderHandles.get(handle2);
+
+        // If one of the colliders is an ice block, start melting it
+        if (iceBlock1 && !iceBlock1.getIsMelting()) {
+          iceBlock1.startMelting();
+        }
+        if (iceBlock2 && !iceBlock2.getIsMelting()) {
+          iceBlock2.startMelting();
+        }
+
+        // Check for laser collisions with balls
+        const laser1 = this.laserColliderHandles.get(handle1);
+        const laser2 = this.laserColliderHandles.get(handle2);
+        const ballHitByLaser = (laser1 && ball2) || (laser2 && ball1);
+
+        if (ballHitByLaser) {
+          const hitBall = ball1 || ball2;
+          if (hitBall) {
+            this.handleLoss(hitBall);
+          }
+        }
       }
 
-      // Check for ice block collisions
-      const iceBlock1 = this.iceBlockColliderHandles.get(handle1);
-      const iceBlock2 = this.iceBlockColliderHandles.get(handle2);
+      // Check for conveyor collisions with balls and drawn lines
+      const conv1 = this.conveyorHandles.get(handle1);
+      const conv2 = this.conveyorHandles.get(handle2);
+      const convBall1 = this.ballColliderHandles.get(handle1);
+      const convBall2 = this.ballColliderHandles.get(handle2);
+      const convLine1 = this.drawnLineColliderHandles.get(handle1);
+      const convLine2 = this.drawnLineColliderHandles.get(handle2);
+      const convFall1 = this.fallingObjectColliderHandles.get(handle1);
+      const convFall2 = this.fallingObjectColliderHandles.get(handle2);
+      const convSeesaw1 = this.seesawColliderHandles.get(handle1);
+      const convSeesaw2 = this.seesawColliderHandles.get(handle2);
 
-      // If one of the colliders is an ice block, start melting it
-      if (iceBlock1 && !iceBlock1.getIsMelting()) {
-        iceBlock1.startMelting();
+      // Identify the pair (conveyor + ball or line or falling object or seesaw)
+      let conveyorContact: { conv: ConveyorBelt, body: RAPIER.RigidBody } | null = null;
+
+      if (conv1 && convBall2) {
+        conveyorContact = { conv: conv1, body: convBall2.body };
+      } else if (conv2 && convBall1) {
+        conveyorContact = { conv: conv2, body: convBall1.body };
+      } else if (conv1 && convLine2) {
+        conveyorContact = { conv: conv1, body: convLine2.body };
+      } else if (conv2 && convLine1) {
+        conveyorContact = { conv: conv2, body: convLine1.body };
+      } else if (conv1 && convFall2) {
+        conveyorContact = { conv: conv1, body: convFall2.body };
+      } else if (conv2 && convFall1) {
+        conveyorContact = { conv: conv2, body: convFall1.body };
+      } else if (conv1 && convSeesaw2) {
+        conveyorContact = { conv: conv1, body: convSeesaw2.plankBody };
+      } else if (conv2 && convSeesaw1) {
+        conveyorContact = { conv: conv2, body: convSeesaw1.plankBody };
       }
-      if (iceBlock2 && !iceBlock2.getIsMelting()) {
-        iceBlock2.startMelting();
-      }
 
-      // Check for laser collisions with balls
-      const laser1 = this.laserColliderHandles.get(handle1);
-      const laser2 = this.laserColliderHandles.get(handle2);
-      const ballHitByLaser = (laser1 && ball2) || (laser2 && ball1);
-
-      if (ballHitByLaser) {
-        const hitBall = ball1 || ball2;
-        if (hitBall) {
-          this.handleLoss(hitBall);
+      if (conveyorContact) {
+        if (started) {
+          // Add contact (avoid duplicates for multi-collider bodies like DrawnLine)
+          const exists = this.activeConveyorContacts.some(
+            c => c.body === conveyorContact!.body && c.conveyor === conveyorContact!.conv
+          );
+          if (!exists) {
+            this.activeConveyorContacts.push({ body: conveyorContact.body, conveyor: conveyorContact.conv });
+          }
+        } else {
+          // Remove contact
+          this.activeConveyorContacts = this.activeConveyorContacts.filter(
+            c => c.body !== conveyorContact!.body || c.conveyor !== conveyorContact!.conv
+          );
         }
       }
     });
@@ -488,6 +577,47 @@ export class Game {
         this.handleLoss(ball);
         return;
       }
+    }
+  }
+
+  /**
+   * Apply acceleration to a rigid body from a conveyor belt
+   * Uses F = m * a to ensure all objects get the same acceleration regardless of mass
+   * @param body The rigid body to accelerate
+   * @param conveyor The conveyor belt
+   * @param direction 1 for rightward (top), -1 for leftward (bottom)
+   * @param dt Time step in seconds
+   */
+  private applyAcceleration(body: RAPIER.RigidBody, conveyor: ConveyorBelt, direction: number, dt: number): void {
+    const angle = conveyor.getAngle();
+    const acceleration = conveyor.acceleration * direction;
+    const maxVelocity = conveyor.maxVelocity;
+
+    // Calculate acceleration direction in world space (conveyor's local X axis)
+    const dirX = Math.cos(angle);
+    const dirY = -Math.sin(angle); // Negative because Rapier Y is inverted
+
+    // Get current velocity
+    const vel = body.linvel();
+
+    // Calculate velocity component in the acceleration direction
+    const velInDir = vel.x * dirX + vel.y * dirY;
+
+    // Determine if we should apply acceleration
+    // Only apply if velocity in that direction is below max
+    const effectiveMaxVel = maxVelocity * Math.sign(acceleration);
+    const shouldApply = acceleration > 0 ? velInDir < effectiveMaxVel : velInDir > effectiveMaxVel;
+
+    if (shouldApply) {
+      // Get mass of the body (F = m * a)
+      const mass = body.mass();
+
+      // Calculate force based on desired acceleration: F = m * a
+      const forceX = dirX * acceleration * mass;
+      const forceY = dirY * acceleration * mass;
+
+      // Apply impulse = Force * time
+      body.applyImpulse({ x: forceX * dt, y: forceY * dt }, true);
     }
   }
 
@@ -522,6 +652,10 @@ export class Game {
     if (index > -1) this.balls.splice(index, 1);
     this.ballColliderHandles.delete(ball.getColliderHandle());
 
+    // Also remove from active conveyor contacts
+    this.activeConveyorContacts = this.activeConveyorContacts.filter(c => c.body !== ball.body);
+
+
     // Calculate clamped position for effects (so they are visible if ball is out of bounds)
     const clampedX = Math.max(0, Math.min(pixelPos.x, GAME_WIDTH));
     const clampedY = Math.max(0, Math.min(pixelPos.y, GAME_HEIGHT));
@@ -555,6 +689,44 @@ export class Game {
     for (const seesaw of this.seesaws) {
       seesaw.applyForces();
     }
+
+    // Apply continuous conveyor forces
+    for (const contact of this.activeConveyorContacts) {
+      // Calculate local position of ball relative to conveyor to determine direction
+      // 1. Get conveyor transform
+      const accTranslation = contact.conveyor.body.translation();
+      const accRotation = contact.conveyor.body.rotation();
+
+      // 2. Get body translation
+      const bodyTranslation = contact.body.translation();
+
+      // 3. Transform body position to conveyor local space
+      const dx = bodyTranslation.x - accTranslation.x;
+      const dy = bodyTranslation.y - accTranslation.y;
+
+      // Rotate by negative conveyor angle to align with local axes
+      // Rapier rotation is CCW radians.
+      // We want to un-rotate.
+      const cos = Math.cos(-accRotation);
+      const sin = Math.sin(-accRotation);
+
+      // Local Point = InverseRot * (WorldPoint - Origin)
+      // localX = dx * cos - dy * sin
+      // localY = dx * sin + dy * cos
+      const localY = dx * sin + dy * cos;
+
+      // Determine direction: Top (accelerate right) or Bottom (accelerate left)
+      // In Rapier coordinate system (Y-up), positive localY means visually "above" the belt center.
+      // Visually "Top" in Pixi (Y-down) corresponds to positive Y in Rapier.
+      // Requirement: Top half -> Rightward (1).
+      // Requirement: Bottom half -> Leftward (-1).
+      // So: positive localY (Rapier top) -> direction 1 (right)
+
+      const direction = localY > 0 ? 1 : -1;
+
+      this.applyAcceleration(contact.body, contact.conveyor, direction, dt);
+    }
+
 
     // Step physics world
     this.physicsWorld.step(Math.min(dt, 1 / 30));
@@ -596,6 +768,11 @@ export class Game {
     // Update seesaws graphics from physics
     for (const seesaw of this.seesaws) {
       seesaw.update();
+    }
+
+    // Update conveyors (gear animation)
+    for (const conveyor of this.conveyors) {
+      conveyor.update(dt);
     }
 
   }

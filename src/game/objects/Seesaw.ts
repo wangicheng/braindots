@@ -143,6 +143,10 @@ export class Seesaw {
     }
   }
 
+  getColliderHandle(): number {
+    return this.collider.handle;
+  }
+
   /**
    * Update graphics from physics
    */

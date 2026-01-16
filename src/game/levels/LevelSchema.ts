@@ -72,6 +72,15 @@ export interface SeesawConfig {
   angle?: number;    // Initial angle (degrees)
 }
 
+export interface ConveyorBeltConfig {
+  x: number;         // Center X
+  y: number;         // Center Y
+  width: number;     // Belt length (excluding semicircles)
+  angle?: number;    // Rotation angle (degrees, default: 0)
+  acceleration?: number;  // Acceleration (m/s², can be negative, default: CONVEYOR_BELT_ACCELERATION)
+  maxVelocity?: number;   // Max velocity cap (m/s, default: |acceleration| * 1.0)
+}
+
 export interface LevelData {
   id: string;
   balls: {
@@ -84,4 +93,5 @@ export interface LevelData {
   iceBlocks?: IceBlockConfig[];
   lasers?: LaserConfig[];
   seesaws?: SeesawConfig[];
+  conveyors?: ConveyorBeltConfig[];
 }

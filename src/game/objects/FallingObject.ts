@@ -145,6 +145,10 @@ export class FallingObject {
     }
   }
 
+  getColliderHandle(): number {
+    return this.colliders[0].handle;
+  }
+
   destroy(physicsWorld: PhysicsWorld): void {
     physicsWorld.getWorld().removeRigidBody(this.body);
     this.graphics.destroy();
