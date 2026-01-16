@@ -27,6 +27,8 @@ import {
   BALL_COLORS,
   BALL_RADIUS,
   COLLISION_GROUP,
+  LINE_WIDTH,
+  SCALE,
 } from './config';
 import { EffectManager } from './effects/EffectManager';
 
@@ -848,12 +850,11 @@ export class Game {
 
   /**
    * Check intersection for drawing
+   * Uses shape cast (ball shape) instead of ray cast to ensure the entire line segment
+   * maintains a minimum distance from restricted areas.
    */
   private checkIntersection(p1: Point, p2: Point): Point | null {
-    let closestIntersection: Point | null = null;
-    let minDist = Infinity;
-
-    // 1. Check Physics World (Raycast)
+    // 1. Check Physics World (Shape Cast)
     const world = this.physicsWorld.getWorld();
     const R = this.physicsWorld.getRAPIER();
 
@@ -866,28 +867,47 @@ export class Game {
 
     if (len > 0.001) {
       const dir = { x: dx / len, y: dy / len };
-      const ray = new R.Ray({ x: physP1.x, y: physP1.y }, dir);
 
-      // Cast ray against everything
-      const hit = world.castRay(ray, len, true, COLLISION_GROUP.ALL);
+      // Use a ball shape with radius equal to half of LINE_WIDTH (the line's visual radius)
+      // This ensures the entire line (including its thickness) stays away from obstacles
+      const shapeRadius = (LINE_WIDTH / 2) / SCALE;
+      const shape = new R.Ball(shapeRadius);
+
+      // Shape cast from p1 in direction of p2
+      // API: castShape(shapePos, shapeRot, shapeVel, shape, targetDistance, maxToi, stopAtPenetration, filterFlags, filterGroups, ...)
+      const targetDistance = 0.0;  // We want the first hit, not with some margin
+      const maxToi = len;           // Maximum time of impact is the length of the segment
+      const stopAtPenetration = true; // Stop at first contact if already penetrating
+
+      const hit = world.castShape(
+        physP1,           // shapePos: starting position
+        0,                // shapeRot: rotation (0 for ball)
+        dir,              // shapeVel: direction of movement (unit vector)
+        shape,            // shape: the ball shape
+        targetDistance,   // targetDistance: separation distance at which we consider a hit
+        maxToi,           // maxToi: maximum time of impact (distance in this case)
+        stopAtPenetration,// stopAtPenetration: if true, reports hit even when initially penetrating
+        undefined,        // filterFlags: optional, we use filterGroups
+        COLLISION_GROUP.ALL // filterGroups: collision filter groups
+      );
 
       if (hit) {
-        const hitPoint = ray.pointAt(hit.timeOfImpact); // pointAt returns {x, y}
-        const pixelHit = this.physicsWorld.toPixels(hitPoint.x, hitPoint.y);
+        // hit.time_of_impact (toi) is the distance along the direction vector where the hit occurred
+        // The hit point is at p1 + dir * toi
+        const toi = hit.time_of_impact;
+        const hitX = physP1.x + dir.x * toi;
+        const hitY = physP1.y + dir.y * toi;
+        const pixelHit = this.physicsWorld.toPixels(hitX, hitY);
 
-        const dist = Math.sqrt((pixelHit.x - p1.x) ** 2 + (pixelHit.y - p1.y) ** 2);
-        if (dist < minDist) {
-          minDist = dist;
-          closestIntersection = pixelHit;
-        }
+        return pixelHit;
       }
     }
 
-    // 2. Check Nets is now covered by the Physics World Raycast above
+    // 2. Check Nets is now covered by the Physics World Shape Cast above
     // because Net now has a collider in the COLLISION_GROUP.NET
-    // and the raycast mask 0xFFFFFFFF includes it.
+    // and the shape cast mask 0xFFFFFFFF includes it.
 
-    return closestIntersection;
+    return null;
   }
 
   /**

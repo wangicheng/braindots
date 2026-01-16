@@ -109,16 +109,11 @@ export class DrawingManager {
         const dy = intersection.y - lastPoint.y;
         const distToIntersect = Math.sqrt(dx * dx + dy * dy);
 
-        // If the segment to the wall is long enough, add it
+        // If the segment to the intersection point is long enough, add it
+        // Note: No offset needed because shape cast (with LINE_WIDTH/2 radius) already
+        // ensures the entire line segment maintains proper distance from obstacles
         if (distToIntersect >= LINE_MIN_DISTANCE) {
-          // Offset slightly back to avoid sticking to the object
-          const offset = 3.0;
-          if (distToIntersect > offset) {
-            const t = (distToIntersect - offset) / distToIntersect;
-            const newX = lastPoint.x + dx * t;
-            const newY = lastPoint.y + dy * t;
-            this.currentPoints.push({ x: newX, y: newY });
-          }
+          this.currentPoints.push(intersection);
         }
 
         // We hit something, so we stop here. 
