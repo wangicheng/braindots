@@ -26,6 +26,9 @@ import {
   COLLISION_GROUP,
 } from './config';
 import { EffectManager } from './effects/EffectManager';
+import type { Pen } from './pens/PenConfig';
+import { getDefaultPen } from './pens/PenConfig';
+import { PenSelector } from './ui/PenSelector';
 
 export const GameState = {
   READY: 0,
@@ -62,6 +65,11 @@ export class Game {
 
   // Laser texture (loaded once, shared by all lasers)
   private laserTexture: PIXI.Texture | null = null;
+
+  // Pen selection
+  private selectedPen: Pen = getDefaultPen();
+  private penSelector: PenSelector | null = null;
+  private penButton: HTMLButtonElement | null = null;
 
   constructor() {
     this.app = new PIXI.Application();
@@ -274,6 +282,11 @@ export class Game {
     this.gameState = GameState.READY;
     this.effectManager.clear();
 
+    // Show pen button on restart
+    if (this.penButton) {
+      this.penButton.style.display = 'block';
+    }
+
     // Clear nets
     for (const net of this.nets) {
       net.destroy(this.physicsWorld);
@@ -313,6 +326,7 @@ export class Game {
    */
   private setupDrawing(): void {
     this.drawingManager = new DrawingManager(this.gameContainer);
+    this.drawingManager.setPen(this.selectedPen);
     this.drawingManager.enable(
       this.interactionArea,
       this.onLineDrawn.bind(this),
@@ -329,6 +343,11 @@ export class Game {
       this.gameState = GameState.PLAYING;
       this.balls.forEach(ball => ball.activate());
       this.fallingObjects.forEach(obj => obj.activate());
+
+      // Hide pen button when game starts
+      if (this.penButton) {
+        this.penButton.style.display = 'none';
+      }
     }
   }
 
@@ -336,7 +355,7 @@ export class Game {
    * Handle when a line is drawn
    */
   private onLineDrawn(points: Point[]): void {
-    const line = new DrawnLine(this.physicsWorld, points);
+    const line = new DrawnLine(this.physicsWorld, points, this.selectedPen);
     this.drawnLines.push(line);
     this.gameContainer.addChild(line.graphics);
 
@@ -392,7 +411,50 @@ export class Game {
       this.restartLevel();
     });
 
+    // Pen Button
+    this.penButton = document.createElement('button');
+    this.penButton.textContent = '🖊️ Pen';
+    this.penButton.style.pointerEvents = 'auto';
+    this.penButton.style.position = 'absolute';
+    this.penButton.style.top = '20px';
+    this.penButton.style.right = '130px';
+    this.penButton.style.padding = '8px 16px';
+    this.penButton.style.fontSize = '16px';
+    this.penButton.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+    this.penButton.style.color = 'white';
+    this.penButton.style.border = '1px solid rgba(255, 255, 255, 0.4)';
+    this.penButton.style.borderRadius = '20px';
+    this.penButton.style.cursor = 'pointer';
+    this.penButton.style.backdropFilter = 'blur(4px)';
+    this.penButton.style.transition = 'all 0.2s ease';
+
+    this.penButton.addEventListener('mouseenter', () => {
+      if (this.penButton && this.gameState === GameState.READY) {
+        this.penButton.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+      }
+    });
+    this.penButton.addEventListener('mouseleave', () => {
+      if (this.penButton) {
+        this.penButton.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+      }
+    });
+
+    this.penButton.addEventListener('click', () => {
+      if (this.gameState === GameState.READY && this.penSelector) {
+        this.penSelector.show((pen: Pen) => {
+          this.selectedPen = pen;
+          if (this.drawingManager) {
+            this.drawingManager.setPen(pen);
+          }
+        }, this.selectedPen.id);
+      }
+    });
+
+    // Create pen selector
+    this.penSelector = new PenSelector(container);
+
     uiOverlay.appendChild(restartBtn);
+    uiOverlay.appendChild(this.penButton);
     container.appendChild(uiOverlay);
   }
 

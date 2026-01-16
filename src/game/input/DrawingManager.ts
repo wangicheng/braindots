@@ -7,6 +7,7 @@ import * as PIXI from 'pixi.js';
 import { distanceSampling } from '../utils/douglasPeucker';
 import type { Point } from '../utils/douglasPeucker';
 import { LINE_COLOR, LINE_WIDTH, LINE_MIN_DISTANCE } from '../config';
+import type { Pen } from '../pens/PenConfig';
 
 export interface CollisionProvider {
   isPointValid(point: Point): boolean;
@@ -23,6 +24,11 @@ export class DrawingManager {
   private onLineComplete: ((points: Point[]) => void) | null = null;
   private onDrawingEnd: (() => void) | null = null;
   private collisionProvider: CollisionProvider | null = null;
+
+  // Current pen configuration (uses defaults if not set)
+  private penColor: number = LINE_COLOR;
+  private penWidth: number = LINE_WIDTH;
+  private penMinDistance: number = LINE_MIN_DISTANCE;
 
   constructor(stage: PIXI.Container) {
     this.container = new PIXI.Container();
@@ -83,6 +89,15 @@ export class DrawingManager {
   }
 
   /**
+   * Set the pen configuration
+   */
+  setPen(pen: Pen): void {
+    this.penColor = pen.color;
+    this.penWidth = pen.width;
+    this.penMinDistance = pen.minDistance;
+  }
+
+  /**
    * Handle pointer move event
    */
   private onPointerMove(event: PIXI.FederatedPointerEvent): void {
@@ -110,7 +125,7 @@ export class DrawingManager {
         const distToIntersect = Math.sqrt(dx * dx + dy * dy);
 
         // If the segment to the wall is long enough, add it
-        if (distToIntersect >= LINE_MIN_DISTANCE) {
+        if (distToIntersect >= this.penMinDistance) {
           // Offset slightly back to avoid sticking to the object
           const offset = 3.0;
           if (distToIntersect > offset) {
@@ -132,7 +147,7 @@ export class DrawingManager {
     const dy = point.y - lastPoint.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
-    if (distance >= LINE_MIN_DISTANCE) {
+    if (distance >= this.penMinDistance) {
       this.currentPoints.push(point);
     }
 
@@ -163,7 +178,7 @@ export class DrawingManager {
     if (this.currentPoints.length >= 1 && this.isValidStart) {
       // Simplify the line using only distance sampling, NO Douglas-Peucker
       // This ensures the physics shape matches the visual preview (which was distance thresholded)
-      const simplifiedPoints = distanceSampling(this.currentPoints, LINE_MIN_DISTANCE);
+      const simplifiedPoints = distanceSampling(this.currentPoints, this.penMinDistance);
 
       // Need at least 1 point after simplification (single point = dot)
       if (simplifiedPoints.length >= 1 && this.onLineComplete) {
@@ -190,8 +205,8 @@ export class DrawingManager {
     // Draw main committed line
     if (this.currentPoints.length >= 2) {
       this.currentGraphics.setStrokeStyle({
-        width: LINE_WIDTH,
-        color: LINE_COLOR,
+        width: this.penWidth,
+        color: this.penColor,
         cap: 'round',
         join: 'round',
         alpha: 1.0, // Fully opaque to match final line
@@ -208,8 +223,8 @@ export class DrawingManager {
     } else if (this.currentPoints.length === 1 && this.isValidStart) {
       // Draw single point only if start is valid
       const p = this.currentPoints[0];
-      this.currentGraphics.circle(p.x, p.y, LINE_WIDTH / 2);
-      this.currentGraphics.fill(LINE_COLOR);
+      this.currentGraphics.circle(p.x, p.y, this.penWidth / 2);
+      this.currentGraphics.fill(this.penColor);
     }
 
     // Draw ghost line to cursor using the separate preview graphics
@@ -221,10 +236,10 @@ export class DrawingManager {
       const dy = cursorPoint.y - lastPoint.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if (distance >= LINE_MIN_DISTANCE) {
+      if (distance >= this.penMinDistance) {
         this.previewGraphics.setStrokeStyle({
-          width: LINE_WIDTH,
-          color: LINE_COLOR,
+          width: this.penWidth,
+          color: this.penColor,
           cap: 'round',
           join: 'round',
           alpha: 0.4, // Semi-transparent for ghost segment

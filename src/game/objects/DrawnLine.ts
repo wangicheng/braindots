@@ -16,6 +16,7 @@ import {
 } from '../config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { Point } from '../utils/douglasPeucker';
+import type { Pen } from '../pens/PenConfig';
 
 export class DrawnLine {
   public graphics: PIXI.Graphics;
@@ -24,9 +25,23 @@ export class DrawnLine {
   private points: Point[];
   private physicsWorld: PhysicsWorld;
 
-  constructor(physicsWorld: PhysicsWorld, points: Point[]) {
+  // Pen properties (uses defaults if no pen provided)
+  private lineColor: number;
+  private lineWidth: number;
+  private lineDensity: number;
+  private lineFriction: number;
+  private lineRestitution: number;
+
+  constructor(physicsWorld: PhysicsWorld, points: Point[], pen?: Pen) {
     this.points = points;
     this.physicsWorld = physicsWorld;
+
+    // Set pen properties (use defaults if no pen)
+    this.lineColor = pen?.color ?? LINE_COLOR;
+    this.lineWidth = pen?.width ?? LINE_WIDTH;
+    this.lineDensity = pen?.density ?? LINE_DENSITY;
+    this.lineFriction = pen?.friction ?? LINE_FRICTION;
+    this.lineRestitution = pen?.restitution ?? LINE_RESTITUTION;
 
     // Calculate centroid for body position
     const centroid = this.calculateCentroid(points);
@@ -73,8 +88,8 @@ export class DrawnLine {
     if (this.points.length < 1) return;
 
     this.graphics.setStrokeStyle({
-      width: LINE_WIDTH,
-      color: LINE_COLOR,
+      width: this.lineWidth,
+      color: this.lineColor,
       cap: 'round',
       join: 'round',
     });
@@ -82,8 +97,8 @@ export class DrawnLine {
     // Special case for single point
     if (this.points.length === 1) {
       const p = this.points[0];
-      this.graphics.circle(p.x - centroid.x, p.y - centroid.y, LINE_WIDTH / 2);
-      this.graphics.fill(LINE_COLOR);
+      this.graphics.circle(p.x - centroid.x, p.y - centroid.y, this.lineWidth / 2);
+      this.graphics.fill(this.lineColor);
       return;
     }
 
@@ -105,7 +120,7 @@ export class DrawnLine {
   private createPhysicsSegments(centroid: Point): void {
     const world = this.physicsWorld.getWorld();
     const R = this.physicsWorld.getRAPIER();
-    const halfWidth = (LINE_WIDTH / 2) / SCALE;
+    const halfWidth = (this.lineWidth / 2) / SCALE;
 
     for (let i = 0; i < this.points.length - 1; i++) {
       const p1 = this.points[i];
@@ -132,9 +147,9 @@ export class DrawnLine {
       const colliderDesc = R.ColliderDesc.cuboid(length / 2, halfWidth)
         .setTranslation(centerX, centerY)
         .setRotation(angle)
-        .setDensity(LINE_DENSITY)
-        .setFriction(LINE_FRICTION)
-        .setRestitution(LINE_RESTITUTION)
+        .setDensity(this.lineDensity)
+        .setFriction(this.lineFriction)
+        .setRestitution(this.lineRestitution)
         .setCollisionGroups(COLLISION_GROUP.USER_LINE);
 
       const collider = world.createCollider(colliderDesc, this.body);
@@ -148,9 +163,9 @@ export class DrawnLine {
 
       const colliderDesc = R.ColliderDesc.ball(halfWidth)
         .setTranslation(x, y)
-        .setDensity(LINE_DENSITY)
-        .setFriction(LINE_FRICTION)
-        .setRestitution(LINE_RESTITUTION)
+        .setDensity(this.lineDensity)
+        .setFriction(this.lineFriction)
+        .setRestitution(this.lineRestitution)
         .setCollisionGroups(COLLISION_GROUP.USER_LINE);
 
       const collider = world.createCollider(colliderDesc, this.body);
