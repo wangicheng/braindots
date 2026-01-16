@@ -148,7 +148,7 @@ export class Game {
    * Load the first level
    */
   private async createGameObjects(): Promise<void> {
-    await this.loadLevel(3);
+    await this.loadLevel(0);
   }
 
   /**

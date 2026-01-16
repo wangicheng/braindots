@@ -7,6 +7,7 @@ import * as PIXI from 'pixi.js';
 import { distanceSampling } from '../utils/douglasPeucker';
 import type { Point } from '../utils/douglasPeucker';
 import { LINE_COLOR, LINE_WIDTH, LINE_MIN_DISTANCE } from '../config';
+import { drawLineWithCornerStyle } from '../utils/lineRenderer';
 
 export interface CollisionProvider {
   isPointValid(point: Point): boolean;
@@ -175,36 +176,16 @@ export class DrawingManager {
   }
 
   /**
-   * Redraw the current line preview
+   * Redraw the current line preview with custom corner styles
    */
   private redrawCurrentLine(cursorPoint?: Point): void {
     if (!this.currentGraphics || this.currentPoints.length < 1) return;
 
     this.currentGraphics.clear();
 
-    // Draw main committed line
-    if (this.currentPoints.length >= 2) {
-      this.currentGraphics.setStrokeStyle({
-        width: LINE_WIDTH,
-        color: LINE_COLOR,
-        cap: 'round',
-        join: 'round',
-        alpha: 1.0, // Fully opaque to match final line
-      });
-
-      const startPoint = this.currentPoints[0];
-      this.currentGraphics.moveTo(startPoint.x, startPoint.y);
-
-      for (let i = 1; i < this.currentPoints.length; i++) {
-        const point = this.currentPoints[i];
-        this.currentGraphics.lineTo(point.x, point.y);
-      }
-      this.currentGraphics.stroke();
-    } else if (this.currentPoints.length === 1 && this.isValidStart) {
-      // Draw single point only if start is valid
-      const p = this.currentPoints[0];
-      this.currentGraphics.circle(p.x, p.y, LINE_WIDTH / 2);
-      this.currentGraphics.fill(LINE_COLOR);
+    // Draw main committed line using custom corner styles
+    if (this.currentPoints.length >= 1 && this.isValidStart) {
+      drawLineWithCornerStyle(this.currentGraphics, this.currentPoints, null);
     }
 
     // Draw ghost line to cursor using the separate preview graphics
@@ -217,6 +198,7 @@ export class DrawingManager {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance >= LINE_MIN_DISTANCE) {
+        // For preview, use simple stroke style
         this.previewGraphics.setStrokeStyle({
           width: LINE_WIDTH,
           color: LINE_COLOR,

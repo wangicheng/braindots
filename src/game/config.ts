@@ -63,7 +63,7 @@ export const CONVEYOR_BELT_FRICTION = 0.0;      // Friction for conveyor belt
 // Line drawing settings
 export const LINE_COLOR = 0x333333;
 export const LINE_WIDTH = 7; // pixels
-export const LINE_MIN_DISTANCE = 10; // Minimum distance between points
+export const LINE_MIN_DISTANCE = 15; // Minimum distance between points
 
 // Line physics
 export const LINE_DENSITY = 1.0;
