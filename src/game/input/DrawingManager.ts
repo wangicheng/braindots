@@ -51,9 +51,32 @@ export class DrawingManager {
   }
 
   /**
+   * Cancel current drawing operation
+   */
+  cancelDrawing(): void {
+    this.isDrawing = false;
+    this.isValidStart = false;
+
+    // Clear preview graphics
+    this.previewGraphics.clear();
+
+    // Destroy current line graphics
+    if (this.currentGraphics) {
+      this.container.removeChild(this.currentGraphics);
+      this.currentGraphics.destroy();
+      this.currentGraphics = null;
+    }
+
+    this.currentPoints = [];
+  }
+
+  /**
    * Handle pointer down event
    */
   private onPointerDown(event: PIXI.FederatedPointerEvent): void {
+    // Cancel any existing drawing first
+    this.cancelDrawing();
+
     const startPoint = { x: event.globalX, y: event.globalY };
 
     // Check if starting point is valid

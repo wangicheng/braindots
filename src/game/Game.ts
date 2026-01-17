@@ -347,6 +347,7 @@ export class Game {
 
 
     if (this.drawingManager) {
+      this.drawingManager.cancelDrawing();
       this.drawingManager.setCollisionProvider({
         isPointValid: () => true,
         getIntersection: () => null
