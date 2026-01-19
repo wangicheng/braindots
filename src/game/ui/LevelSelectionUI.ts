@@ -90,7 +90,7 @@ export class LevelSelectionUI extends PIXI.Container {
     const circle = new PIXI.Graphics();
     circle.circle(0, 0, size / 2);
     // circle.fill({ color: 0xFFFFFF, alpha: 0.8 }); // Optional background
-    circle.stroke({ width: 2, color: 0x555555 });
+    circle.stroke({ width: 3, color: 0x555555 });
 
     btn.addChild(circle);
 
