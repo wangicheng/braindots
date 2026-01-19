@@ -477,7 +477,7 @@ export class Game {
     // Restart Button
     // Restart Button
     this.restartBtn = document.createElement('button');
-    this.restartBtn.textContent = '🔄 Restart';
+    this.restartBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Restart';
     this.restartBtn.style.pointerEvents = 'auto';
     this.restartBtn.style.position = 'absolute';
     this.restartBtn.style.top = '20px';
@@ -505,7 +505,7 @@ export class Game {
 
     // Home Button
     this.homeBtn = document.createElement('button');
-    this.homeBtn.textContent = '🏠 Home';
+    this.homeBtn.innerHTML = '<i class="bi bi-house"></i> Home';
     this.homeBtn.style.pointerEvents = 'auto';
     this.homeBtn.style.position = 'absolute';
     this.homeBtn.style.top = '20px';
@@ -534,7 +534,7 @@ export class Game {
     // Pen Selection Button
     // Pen Selection Button
     this.penBtn = document.createElement('button');
-    this.penBtn.textContent = '✏️ Pen';
+    this.penBtn.innerHTML = '<i class="bi bi-vector-pen"></i> Pen';
     this.penBtn.style.pointerEvents = 'auto';
     this.penBtn.style.position = 'absolute';
     this.penBtn.style.top = '20px';

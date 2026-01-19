@@ -71,7 +71,7 @@ export class LevelSelectionUI extends PIXI.Container {
 
     // 3. Action Area (Right)
     // Create some dummy icon buttons
-    const buttonConfigs = ['✒️', '🪧', '⚙️'];
+    const buttonConfigs = ['\uF604', '\uF479']; // vector-pen, list
     let btnX = GAME_WIDTH - 40;
 
     buttonConfigs.reverse().forEach(iconChar => {
@@ -97,9 +97,10 @@ export class LevelSelectionUI extends PIXI.Container {
     // Icon Text
     const text = new PIXI.Text({
       text: iconChar,
-      style: { fontSize: 32, fill: '#555555' }
+      style: { fontFamily: 'bootstrap-icons', fontSize: 40, fill: '#555555' }
     });
     text.anchor.set(0.5);
+    text.y = 6; // Slightly move down to center visually
     btn.addChild(text);
 
     // Interactive

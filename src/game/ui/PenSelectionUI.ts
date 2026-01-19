@@ -97,8 +97,15 @@ export class PenSelectionUI extends PIXI.Container {
     badgeBg.fill(0xF2F2F2);
     badge.addChild(badgeBg);
 
-    const penIcon = new PIXI.Text({ text: '✒️', style: { fontSize: 32 } }); // Placeholder icon
-    penIcon.position.set(10, 12);
+    const penIcon = new PIXI.Text({
+      text: '\uF604',
+      style: {
+        fontFamily: 'bootstrap-icons',
+        fontSize: 36,
+        fill: 0x555555
+      }
+    }); // Icon for current selection or general pen icon
+    penIcon.position.set(12, 16);
     badge.addChild(penIcon);
 
     const countText = new PIXI.Text({ text: `${PENS.length} / ${PENS.length}`, style: { fontFamily: 'Arial', fontSize: 28, fill: 0x555555 } });
