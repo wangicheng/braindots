@@ -31,38 +31,11 @@ export class Seesaw {
     const { x, y, width, height, angle = 0 } = config;
     const angleRad = (angle * Math.PI) / 180;
 
-    // Create main container
-    this.graphics = new PIXI.Container();
-
-    // Create Plank Graphics
-    this.plankGraphics = new PIXI.Graphics();
-    this.plankGraphics.rect(-width / 2, -height / 2, width, height);
-    this.plankGraphics.fill({ color: SEESAW_COLOR });
-
-    // Set initial position and rotation for plank
-    this.plankGraphics.position.set(x, y);
-    this.plankGraphics.rotation = angleRad;
-
-    // Create Pivot (Axis) Graphics
-    this.pivotGraphics = new PIXI.Graphics();
-    const pivotOuterRadius = Math.min(width, height) * 0.25;
-    const pivotInnerRadius = pivotOuterRadius * 0.5;
-
-    // Draw outer circle
-    this.pivotGraphics.circle(0, 0, pivotOuterRadius);
-    this.pivotGraphics.fill({ color: SEESAW_PIVOT_COLOR });
-
-    // Draw inner circle (gray background)
-    this.pivotGraphics.circle(0, 0, pivotInnerRadius);
-    this.pivotGraphics.fill({ color: 0xC8C8C8 });
-
-    // Pivot is fixed at the anchor position
-    this.pivotGraphics.position.set(x, y);
-
-    // Add children to container
-    // Add plank first, then pivot on top
-    this.graphics.addChild(this.plankGraphics);
-    this.graphics.addChild(this.pivotGraphics);
+    // Create visuals
+    this.graphics = Seesaw.createVisual(config);
+    // Retrieve references so we can update them
+    this.plankGraphics = this.graphics.children[0] as PIXI.Graphics;
+    this.pivotGraphics = this.graphics.children[1] as PIXI.Graphics;
 
     const world = physicsWorld.getWorld();
     const R = physicsWorld.getRAPIER();
@@ -176,5 +149,45 @@ export class Seesaw {
     world.removeRigidBody(this.anchorBody);
 
     this.graphics.destroy({ children: true });
+  }
+
+  static createVisual(config: SeesawConfig): PIXI.Container {
+    const { x, y, width, height, angle = 0 } = config;
+    const angleRad = (angle * Math.PI) / 180;
+
+    // Create main container
+    const graphics = new PIXI.Container();
+
+    // Create Plank Graphics
+    const plankGraphics = new PIXI.Graphics();
+    plankGraphics.rect(-width / 2, -height / 2, width, height);
+    plankGraphics.fill({ color: SEESAW_COLOR });
+
+    // Set initial position and rotation for plank
+    plankGraphics.position.set(x, y);
+    plankGraphics.rotation = angleRad;
+
+    // Create Pivot (Axis) Graphics
+    const pivotGraphics = new PIXI.Graphics();
+    const pivotOuterRadius = Math.min(width, height) * 0.25;
+    const pivotInnerRadius = pivotOuterRadius * 0.5;
+
+    // Draw outer circle
+    pivotGraphics.circle(0, 0, pivotOuterRadius);
+    pivotGraphics.fill({ color: SEESAW_PIVOT_COLOR });
+
+    // Draw inner circle (gray background)
+    pivotGraphics.circle(0, 0, pivotInnerRadius);
+    pivotGraphics.fill({ color: 0xC8C8C8 });
+
+    // Pivot is fixed at the anchor position
+    pivotGraphics.position.set(x, y);
+
+    // Add children to container
+    // Add plank first, then pivot on top
+    graphics.addChild(plankGraphics);
+    graphics.addChild(pivotGraphics);
+
+    return graphics;
   }
 }

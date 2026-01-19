@@ -38,9 +38,7 @@ export class Ball {
     this.radius = BALL_RADIUS;
 
     // Create Pixi.js graphics
-    this.graphics = new PIXI.Graphics();
-    this.drawBall(type);
-    this.graphics.position.set(x, y);
+    this.graphics = Ball.createVisual(x, y, type);
 
     // Convert to physics coordinates
     const physicsPos = physicsWorld.toPhysics(x, y);
@@ -75,11 +73,18 @@ export class Ball {
   /**
    * Draw the ball graphics
    */
-  private drawBall(type: BallType): void {
+  /**
+   * Create the visual representation of the ball
+   */
+  static createVisual(x: number, y: number, type: BallType): PIXI.Graphics {
+    const graphics = new PIXI.Graphics();
     const color = BALL_COLORS[type];
 
-    this.graphics.circle(0, 0, this.radius);
-    this.graphics.fill({ color });
+    graphics.circle(0, 0, BALL_RADIUS);
+    graphics.fill({ color });
+    graphics.position.set(x, y);
+
+    return graphics;
   }
 
   /**

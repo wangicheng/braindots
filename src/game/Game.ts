@@ -40,6 +40,7 @@ export const GameState = {
   PLAYING: 1,
   WON: 2,
   LOST: 3,
+  MENU: 4,
 } as const;
 export type GameState = typeof GameState[keyof typeof GameState];
 
@@ -59,6 +60,8 @@ export class Game {
   private drawnLines: DrawnLine[] = [];
   private drawingManager: DrawingManager | null = null;
   private gameContainer: PIXI.Container;
+  private backgroundContainer: PIXI.Container;
+  private menuContainer: PIXI.Container;
   private interactionArea: PIXI.Graphics;
   private hasStarted: boolean = false;
   private currentLevelIndex: number = 0;
@@ -69,7 +72,10 @@ export class Game {
 
   private currentPen: Pen = DEFAULT_PEN;
   private penSelectionUI: PenSelectionUI | null = null;
+  private levelSelectionUI: any = null; // Type will be LevelSelectionUI, using any to avoid import cycles if any
   private penBtn: HTMLButtonElement | null = null;
+  private restartBtn: HTMLButtonElement | null = null;
+  private homeBtn: HTMLButtonElement | null = null;
 
   // Collision handle mapping for ball detection
   private ballColliderHandles: Map<number, Ball> = new Map();
@@ -90,7 +96,9 @@ export class Game {
     this.app = new PIXI.Application();
     this.physicsWorld = new PhysicsWorld();
     this.levelManager = new LevelManager();
+    this.backgroundContainer = new PIXI.Container();
     this.gameContainer = new PIXI.Container();
+    this.menuContainer = new PIXI.Container();
     this.interactionArea = new PIXI.Graphics();
     this.effectManager = new EffectManager(this.gameContainer);
   }
@@ -126,7 +134,10 @@ export class Game {
     }
 
     // Setup game container
+    // Setup containers
+    this.app.stage.addChild(this.backgroundContainer);
     this.app.stage.addChild(this.gameContainer);
+    this.app.stage.addChild(this.menuContainer);
 
     // Create background grid
     this.createBackground();
@@ -145,21 +156,20 @@ export class Game {
     }
 
     // Create game objects
-    await this.createGameObjects();
+    // await this.createGameObjects(); // Moved to startLevel via menu
 
     // Create UI
     this.createUI();
+
+    // Initialize Menu
+    this.initMenu();
+    this.showLevelSelection();
 
     // Start game loop
     this.app.ticker.add(this.update.bind(this));
   }
 
-  /**
-   * Load the first level
-   */
-  private async createGameObjects(): Promise<void> {
-    await this.loadLevel(5);
-  }
+
 
   /**
    * Load level by index
@@ -172,6 +182,7 @@ export class Game {
     }
 
     this.currentLevelIndex = index;
+    this.gameState = GameState.READY;
 
     // Clear existing dynamic objects
     this.clearLevel();
@@ -427,6 +438,8 @@ export class Game {
    * Handle when a line is drawn
    */
   private onLineDrawn(points: Point[]): void {
+    if (this.gameState === GameState.MENU) return;
+
     const line = new DrawnLine(this.physicsWorld, points, this.currentPen);
     this.drawnLines.push(line);
     this.gameContainer.addChild(line.graphics);
@@ -461,31 +474,60 @@ export class Game {
     uiOverlay.style.zIndex = '10';
 
     // Restart Button
-    const restartBtn = document.createElement('button');
-    restartBtn.textContent = '🔄 Restart';
-    restartBtn.style.pointerEvents = 'auto';
-    restartBtn.style.position = 'absolute';
-    restartBtn.style.top = '20px';
-    restartBtn.style.right = '20px';
-    restartBtn.style.padding = '8px 16px';
-    restartBtn.style.fontSize = '16px';
-    restartBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-    restartBtn.style.color = 'white';
-    restartBtn.style.border = '1px solid rgba(255, 255, 255, 0.4)';
-    restartBtn.style.borderRadius = '20px';
-    restartBtn.style.cursor = 'pointer';
-    restartBtn.style.backdropFilter = 'blur(4px)';
-    restartBtn.style.transition = 'all 0.2s ease';
+    // Restart Button
+    this.restartBtn = document.createElement('button');
+    this.restartBtn.textContent = '🔄 Restart';
+    this.restartBtn.style.pointerEvents = 'auto';
+    this.restartBtn.style.position = 'absolute';
+    this.restartBtn.style.top = '20px';
+    this.restartBtn.style.right = '20px';
+    this.restartBtn.style.padding = '8px 16px';
+    this.restartBtn.style.fontSize = '16px';
+    this.restartBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+    this.restartBtn.style.color = 'white';
+    this.restartBtn.style.border = '1px solid rgba(255, 255, 255, 0.4)';
+    this.restartBtn.style.borderRadius = '20px';
+    this.restartBtn.style.cursor = 'pointer';
+    this.restartBtn.style.backdropFilter = 'blur(4px)';
+    this.restartBtn.style.transition = 'all 0.2s ease';
 
-    restartBtn.addEventListener('mouseenter', () => {
-      restartBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+    this.restartBtn.addEventListener('mouseenter', () => {
+      if (this.restartBtn) this.restartBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
     });
-    restartBtn.addEventListener('mouseleave', () => {
-      restartBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+    this.restartBtn.addEventListener('mouseleave', () => {
+      if (this.restartBtn) this.restartBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
     });
 
-    restartBtn.addEventListener('click', () => {
+    this.restartBtn.addEventListener('click', () => {
       this.restartLevel();
+    });
+
+    // Home Button
+    this.homeBtn = document.createElement('button');
+    this.homeBtn.textContent = '🏠 Home';
+    this.homeBtn.style.pointerEvents = 'auto';
+    this.homeBtn.style.position = 'absolute';
+    this.homeBtn.style.top = '20px';
+    this.homeBtn.style.right = '1160px';
+    this.homeBtn.style.padding = '8px 16px';
+    this.homeBtn.style.fontSize = '16px';
+    this.homeBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+    this.homeBtn.style.color = 'white';
+    this.homeBtn.style.border = '1px solid rgba(255, 255, 255, 0.4)';
+    this.homeBtn.style.borderRadius = '20px';
+    this.homeBtn.style.cursor = 'pointer';
+    this.homeBtn.style.backdropFilter = 'blur(4px)';
+    this.homeBtn.style.transition = 'all 0.2s ease';
+
+    this.homeBtn.addEventListener('mouseenter', () => {
+      if (this.homeBtn) this.homeBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+    });
+    this.homeBtn.addEventListener('mouseleave', () => {
+      if (this.homeBtn) this.homeBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+    });
+
+    this.homeBtn.addEventListener('click', () => {
+      this.showLevelSelection();
     });
 
     // Pen Selection Button
@@ -518,7 +560,8 @@ export class Game {
     });
 
     uiOverlay.appendChild(this.penBtn);
-    uiOverlay.appendChild(restartBtn);
+    uiOverlay.appendChild(this.restartBtn);
+    uiOverlay.appendChild(this.homeBtn);
     container.appendChild(uiOverlay);
   }
 
@@ -1022,7 +1065,55 @@ export class Game {
 
     gridGraphics.stroke({ width: 1, color: GRID_COLOR });
 
-    this.gameContainer.addChildAt(gridGraphics, 0);
+    // Check if backgroundContainer is available (it should be)
+    if (this.backgroundContainer) {
+      this.backgroundContainer.addChild(gridGraphics);
+    } else {
+      this.gameContainer.addChildAt(gridGraphics, 0);
+    }
+  }
+
+  private async initMenu(): Promise<void> {
+    // Dynamic import to avoid circular dependencies if any
+    const { LevelSelectionUI } = await import('./ui/LevelSelectionUI');
+    // For now we get all levels from manager
+    // For now we get all levels from manager
+    // Let's create a temporary array of indices or similar. 
+    // LevelManager doesn't expose getAllLevels directly, let's just loop.
+    const levels = [];
+    const count = this.levelManager.getLevelCount();
+    for (let i = 0; i < count; i++) {
+      const l = await this.levelManager.loadLevel(i);
+      if (l) levels.push(l);
+    }
+
+    this.levelSelectionUI = new LevelSelectionUI(levels, (index) => {
+      this.startLevel(index);
+    }, this.laserTexture || undefined);
+    this.menuContainer.addChild(this.levelSelectionUI);
+  }
+
+  private showLevelSelection(): void {
+    this.gameState = GameState.MENU;
+    this.clearLevel();
+    this.gameContainer.visible = false;
+    this.menuContainer.visible = true;
+
+    if (this.penBtn) this.penBtn.style.display = 'none';
+    if (this.restartBtn) this.restartBtn.style.display = 'none';
+    if (this.homeBtn) this.homeBtn.style.display = 'none';
+  }
+
+  private async startLevel(index: number): Promise<void> {
+    this.menuContainer.visible = false;
+    this.gameContainer.visible = true;
+    this.gameState = GameState.READY; // Will switch to PLAYING on interaction
+
+    await this.loadLevel(index);
+
+    if (this.penBtn) this.penBtn.style.display = 'block';
+    if (this.restartBtn) this.restartBtn.style.display = 'block';
+    if (this.homeBtn) this.homeBtn.style.display = 'block';
   }
 
   /**

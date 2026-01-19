@@ -26,32 +26,22 @@ export class Laser {
   constructor(physicsWorld: PhysicsWorld, config: LaserConfig, texture: PIXI.Texture) {
     const { x1, y1, x2, y2 } = config;
 
-    // Calculate length and angle of the laser segment
+    // Calculate length
     const dx = x2 - x1;
     const dy = y2 - y1;
     this.length = Math.sqrt(dx * dx + dy * dy);
+    // Angle handled by createVisual
     const angle = Math.atan2(dy, dx);
-
-    // Get texture height for the laser beam
     this.laserHeight = texture.height;
 
-    // Create container positioned at the start point
-    this.graphics = new PIXI.Container();
-    this.graphics.x = x1;
-    this.graphics.y = y1;
-    this.graphics.rotation = angle;
+    // Create visuals
+    this.graphics = Laser.createVisual(config, texture);
 
-    // Create tiling sprite for the laser pattern
-    // The sprite tiles horizontally along the length
-    this.sprite = new PIXI.TilingSprite({
-      texture,
-      width: this.length,
-      height: this.laserHeight,
-    });
-
-    // Center the sprite vertically on the line
-    this.sprite.anchor.set(0, 0.5);
-    this.graphics.addChild(this.sprite);
+    // We need to retrieve the sprite to animate it in update().
+    // The createVisual returns a container with the sprite as a child.
+    // Assumption: The sprite is the first or only child.
+    // Let's verify: createVisual adds sprite as child.
+    this.sprite = this.graphics.children[0] as PIXI.TilingSprite;
 
     // --- Physics Setup (Sensor) ---
     const world = physicsWorld.getWorld();
@@ -94,7 +84,9 @@ export class Laser {
       this.isFlipped = !this.isFlipped;
 
       // Flip the sprite vertically (180 degrees)
-      this.sprite.scale.y = this.isFlipped ? -1 : 1;
+      if (this.sprite) {
+        this.sprite.scale.y = this.isFlipped ? -1 : 1;
+      }
     }
   }
 
@@ -111,5 +103,36 @@ export class Laser {
   destroy(physicsWorld: PhysicsWorld): void {
     physicsWorld.getWorld().removeRigidBody(this.body);
     this.graphics.destroy({ children: true });
+  }
+
+  static createVisual(config: LaserConfig, texture: PIXI.Texture): PIXI.Container {
+    const { x1, y1, x2, y2 } = config;
+
+    // Calculate length and angle of the laser segment
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx);
+    const laserHeight = texture.height;
+
+    // Create container positioned at the start point
+    const graphics = new PIXI.Container();
+    graphics.x = x1;
+    graphics.y = y1;
+    graphics.rotation = angle;
+
+    // Create tiling sprite for the laser pattern
+    // The sprite tiles horizontally along the length
+    const sprite = new PIXI.TilingSprite({
+      texture,
+      width: length,
+      height: laserHeight,
+    });
+
+    // Center the sprite vertically on the line
+    sprite.anchor.set(0, 0.5);
+    graphics.addChild(sprite);
+
+    return graphics;
   }
 }

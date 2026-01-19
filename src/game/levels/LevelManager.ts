@@ -5,6 +5,7 @@ import level3 from './level3.json';
 import level4 from './level4.json';
 import level5 from './level5.json';
 import level6 from './level6.json';
+import level7 from './level7.json';
 
 /**
  * Level Manager
@@ -21,7 +22,8 @@ export class LevelManager {
     level3 as unknown as LevelData,
     level4 as unknown as LevelData,
     level5 as unknown as LevelData,
-    level6 as unknown as LevelData
+    level6 as unknown as LevelData,
+    level7 as unknown as LevelData
   ];
 
   constructor() {
@@ -42,5 +44,9 @@ export class LevelManager {
 
   getCurrentLevel(): LevelData {
     return this.levels[this.currentLevelIndex];
+  }
+
+  getLevelCount(): number {
+    return this.levels.length;
   }
 }

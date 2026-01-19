@@ -22,25 +22,14 @@ export class IceBlock {
   private meltTime: number; // Duration in seconds (1, 2, or 3)
   private isMelting: boolean = false;
   private meltProgress: number = 0; // 0 to 1
-  private initialAlpha: number;
-  private width: number;
-  private height: number;
 
   constructor(physicsWorld: PhysicsWorld, config: IceBlockConfig) {
     this.meltTime = config.meltTime || 1;
-    this.initialAlpha = ICE_BLOCK_ALPHA;
-    this.width = config.width;
-    this.height = config.height;
 
     const { x, y, width, height, angle = 0 } = config;
 
     // Create Pixi.js graphics
-    this.graphics = new PIXI.Graphics();
-    this.drawIceBlock();
-
-    // Set position and rotation
-    this.graphics.position.set(x, y);
-    this.graphics.rotation = (angle * Math.PI) / 180;
+    this.graphics = IceBlock.createVisual(config);
 
     // Create physics body
     const world = physicsWorld.getWorld();
@@ -62,17 +51,6 @@ export class IceBlock {
       .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
 
     this.collider = world.createCollider(colliderDesc, this.body);
-  }
-
-  /**
-   * Draw the ice block graphics
-   */
-  private drawIceBlock(): void {
-    this.graphics.clear();
-
-    // Draw filled rectangle with transparency
-    this.graphics.rect(-this.width / 2, -this.height / 2, this.width, this.height);
-    this.graphics.fill({ color: ICE_BLOCK_COLOR, alpha: this.initialAlpha * (1 - this.meltProgress) });
   }
 
   /**
@@ -107,8 +85,21 @@ export class IceBlock {
       return true; // Fully melted
     }
 
-    // Redraw with updated alpha
-    this.drawIceBlock();
+    // Redraw with updated alpha (simplification: update alpha directly on graphics instead of redrawing)
+    // The createVisual method returns a Graphics object with a filled rect.
+    // We can just update alpha on the graphics object itself.
+    this.graphics.alpha = 1 - this.meltProgress; // This affects the whole container/graphics
+
+    // Original code redrew. But setting alpha on container/graphics is more efficient and equivalent if only alpha changes.
+    // However, original code used: this.graphics.fill({ color: ICE_BLOCK_COLOR, alpha: this.initialAlpha * (1 - this.meltProgress) });
+    // And this.graphics.rect...
+
+    // If we use graphics.alpha, it multiplies with the fill alpha.
+    // Initial alpha is 0.5 (ICE_BLOCK_ALPHA). 
+    // If we set graphics.alpha, we need to ensure it matches logic.
+    // Logic: alpha = initial * (1 - progress).
+    // If we set graphics.alpha = 1 - progress, and fill was drawn with initial, result is initial * (1 - progress). Correct.
+
     return false;
   }
 
@@ -133,5 +124,22 @@ export class IceBlock {
   destroy(physicsWorld: PhysicsWorld): void {
     physicsWorld.getWorld().removeRigidBody(this.body);
     this.graphics.destroy();
+  }
+
+  static createVisual(config: IceBlockConfig): PIXI.Graphics {
+    const { x, y, width, height, angle = 0 } = config;
+    const initialAlpha = ICE_BLOCK_ALPHA;
+
+    const graphics = new PIXI.Graphics();
+
+    // Draw filled rectangle with transparency
+    graphics.rect(-width / 2, -height / 2, width, height);
+    graphics.fill({ color: ICE_BLOCK_COLOR, alpha: initialAlpha });
+
+    // Set position and rotation
+    graphics.position.set(x, y);
+    graphics.rotation = (angle * Math.PI) / 180;
+
+    return graphics;
   }
 }

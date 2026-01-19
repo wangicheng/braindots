@@ -37,11 +37,7 @@ export class Button {
     this.verticalBarHeight = VERTICAL_BAR_HEIGHT;
 
     // Create graphics
-    this.graphics = new PIXI.Graphics();
-    this.graphics.position.set(x, y);
-    this.graphics.rotation = this.angle;
-
-    this.drawTShape();
+    this.graphics = Button.createVisual(config);
 
     // Physics setup
     const world = physicsWorld.getWorld();
@@ -85,29 +81,6 @@ export class Button {
       .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
 
     this.colliders.push(world.createCollider(vBarDesc, this.body));
-  }
-
-  private drawTShape(): void {
-    this.graphics.clear();
-
-    // Draw horizontal bar (top of T) - centered at top
-    const hBarY = -VERTICAL_BAR_HEIGHT / 2 + BUTTON_THICKNESS / 2;
-    this.graphics.rect(
-      -HORIZONTAL_BAR_WIDTH / 2,
-      hBarY - BUTTON_THICKNESS / 2,
-      HORIZONTAL_BAR_WIDTH,
-      BUTTON_THICKNESS
-    );
-
-    // Draw vertical bar (stem of T) - centered
-    this.graphics.rect(
-      -BUTTON_THICKNESS / 2,
-      -VERTICAL_BAR_HEIGHT / 2,
-      BUTTON_THICKNESS,
-      VERTICAL_BAR_HEIGHT
-    );
-
-    this.graphics.fill({ color: BUTTON_COLOR });
   }
 
   /**
@@ -174,5 +147,34 @@ export class Button {
   destroy(physicsWorld: PhysicsWorld): void {
     physicsWorld.getWorld().removeRigidBody(this.body);
     this.graphics.destroy();
+  }
+
+  static createVisual(config: ButtonConfig): PIXI.Graphics {
+    const { x, y, angle = 0 } = config;
+    const rad = (angle * Math.PI) / 180;
+
+    const graphics = new PIXI.Graphics();
+    graphics.position.set(x, y);
+    graphics.rotation = rad;
+
+    // Draw horizontal bar (top of T) - centered at top
+    const hBarY = -VERTICAL_BAR_HEIGHT / 2 + BUTTON_THICKNESS / 2;
+    graphics.rect(
+      -HORIZONTAL_BAR_WIDTH / 2,
+      hBarY - BUTTON_THICKNESS / 2,
+      HORIZONTAL_BAR_WIDTH,
+      BUTTON_THICKNESS
+    );
+
+    // Draw vertical bar (stem of T) - centered
+    graphics.rect(
+      -BUTTON_THICKNESS / 2,
+      -VERTICAL_BAR_HEIGHT / 2,
+      BUTTON_THICKNESS,
+      VERTICAL_BAR_HEIGHT
+    );
+
+    graphics.fill({ color: BUTTON_COLOR });
+    return graphics;
   }
 }
