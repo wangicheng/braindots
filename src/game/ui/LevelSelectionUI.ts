@@ -11,6 +11,8 @@ import { Laser } from '../objects/Laser';
 import { Seesaw } from '../objects/Seesaw';
 import { ConveyorBelt } from '../objects/ConveyorBelt';
 import { Button } from '../objects/Button';
+import { PenSelectionUI } from './PenSelectionUI';
+import { type Pen } from '../data/PenData';
 
 export class LevelSelectionUI extends PIXI.Container {
   private levels: LevelData[];
@@ -25,6 +27,10 @@ export class LevelSelectionUI extends PIXI.Container {
   private dragStartPageX: number = 0;
   private dragDistance: number = 0; // Cumulative or max displacement to distinguish tap from swipe
 
+  private penSelectionUI: PenSelectionUI | null = null;
+  private onPenSelect?: (pen: Pen) => void;
+  private currentPenId: string = 'pen_default';
+
   // Constants for Layout
   private readonly HEADER_HEIGHT = GAME_HEIGHT / 5;
   private readonly COLS = 3;
@@ -32,11 +38,19 @@ export class LevelSelectionUI extends PIXI.Container {
   private readonly ITEMS_PER_PAGE = 6;
   private readonly CARD_ASPECT_RATIO = 16 / 9;
 
-  constructor(levels: LevelData[], onSelect: (index: number) => void, laserTexture?: PIXI.Texture) {
+  constructor(
+    levels: LevelData[],
+    onSelect: (index: number) => void,
+    laserTexture?: PIXI.Texture,
+    onPenSelect?: (pen: Pen) => void,
+    initialPenId?: string
+  ) {
     super();
     this.levels = levels;
     this.onSelect = onSelect;
     this.laserTexture = laserTexture;
+    this.onPenSelect = onPenSelect;
+    if (initialPenId) this.currentPenId = initialPenId;
     this.totalPages = Math.ceil(levels.length / this.ITEMS_PER_PAGE);
 
     this.sortableChildren = true;
@@ -70,40 +84,46 @@ export class LevelSelectionUI extends PIXI.Container {
     this.headerContainer.addChild(title);
 
     // 3. Action Area (Right)
-    // Create some dummy icon buttons
-    const buttonConfigs = ['\uF604', '\uF479']; // vector-pen, list
-    let btnX = GAME_WIDTH - 40;
+    const btnY = 36;
 
-    buttonConfigs.reverse().forEach(iconChar => {
-      const btn = this.createHeaderButton(iconChar);
-      btn.position.set(btnX - btn.width, (this.HEADER_HEIGHT - btn.height) / 2);
-      this.headerContainer.addChild(btn);
-      btnX -= (btn.width + 20); // Spacing
-    });
+    // List Icon (Rightmost, matching Restart button position in Game.ts)
+    const listBtn = this.createHeaderButton('\uF479');
+    const listX = GAME_WIDTH - 20 - 70;
+    listBtn.position.set(listX, btnY);
+    this.headerContainer.addChild(listBtn);
+
+    // Pen Icon (Left of List, matching Pen button position in Game.ts)
+    const penBtn = this.createHeaderButton('\uF604');
+    const penX = listX - 20 - 70;
+    penBtn.position.set(penX, btnY);
+    penBtn.on('pointertap', () => this.showPenSelection());
+    this.headerContainer.addChild(penBtn);
   }
 
   private createHeaderButton(iconChar: string): PIXI.Container {
-    const size = 60;
+    const size = 52;
     const container = new PIXI.Container();
 
-    // Circle Outline
-    const circle = new PIXI.Graphics();
-    circle.circle(size / 2, size / 2, size / 2);
-    circle.stroke({ width: 3, color: 0x555555 });
-    container.addChild(circle);
+    // Invisible Hit Area
+    const hitArea = new PIXI.Graphics();
+    hitArea.rect(0, 0, size, size);
+    hitArea.fill({ color: 0xFFFFFF, alpha: 0.001 }); // Almost invisible but interactive
+    container.addChild(hitArea);
 
     // Icon Text
     const text = new PIXI.Text({
       text: iconChar,
       style: {
         fontFamily: 'bootstrap-icons',
-        fontSize: 40,
+        fontSize: 60,
         fill: '#555555',
+        stroke: { color: '#555555', width: 0.5 },
+        align: 'center',
         padding: 10 // Prevent clipping of icon glyphs
       }
     });
     text.anchor.set(0.5);
-    text.position.set(size / 2, size / 2 + 6); // Center and slightly offset for visual balance
+    text.position.set(size / 2, size / 2);
     container.addChild(text);
 
     // Interactive
@@ -302,6 +322,9 @@ export class LevelSelectionUI extends PIXI.Container {
     this.eventMode = 'static';
 
     this.on('pointerdown', (e) => {
+      // If PenSelectionUI is open, do not handle background swipes
+      if (this.penSelectionUI) return;
+
       this.isDragging = true;
       this.dragStartX = e.global.x;
       this.dragDistance = 0; // Reset distance on every new touch
@@ -373,5 +396,38 @@ export class LevelSelectionUI extends PIXI.Container {
       }
     };
     animate();
+  }
+
+  private showPenSelection(): void {
+    if (this.penSelectionUI) {
+      this.removeChild(this.penSelectionUI);
+      this.penSelectionUI.destroy();
+      this.penSelectionUI = null;
+    }
+
+    this.penSelectionUI = new PenSelectionUI(
+      (pen) => {
+        if (this.onPenSelect) this.onPenSelect(pen);
+        this.currentPenId = pen.id;
+        this.closePenSelection();
+      },
+      () => this.closePenSelection(),
+      this.currentPenId
+    );
+
+    this.penSelectionUI.zIndex = 1000;
+    this.addChild(this.penSelectionUI);
+  }
+
+  private closePenSelection(): void {
+    if (this.penSelectionUI) {
+      this.removeChild(this.penSelectionUI);
+      this.penSelectionUI.destroy();
+      this.penSelectionUI = null;
+    }
+  }
+
+  public setPen(penId: string): void {
+    this.currentPenId = penId;
   }
 }

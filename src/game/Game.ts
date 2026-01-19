@@ -73,9 +73,10 @@ export class Game {
   private currentPen: Pen = DEFAULT_PEN;
   private penSelectionUI: PenSelectionUI | null = null;
   private levelSelectionUI: any = null; // Type will be LevelSelectionUI, using any to avoid import cycles if any
-  private penBtn: HTMLButtonElement | null = null;
-  private restartBtn: HTMLButtonElement | null = null;
-  private homeBtn: HTMLButtonElement | null = null;
+  private uiLayer: PIXI.Container;
+  private penBtnContainer: PIXI.Container | null = null;
+  private restartBtnContainer: PIXI.Container | null = null;
+  private homeBtnContainer: PIXI.Container | null = null;
 
   // Collision handle mapping for ball detection
   private ballColliderHandles: Map<number, Ball> = new Map();
@@ -99,6 +100,8 @@ export class Game {
     this.backgroundContainer = new PIXI.Container();
     this.gameContainer = new PIXI.Container();
     this.menuContainer = new PIXI.Container();
+    this.menuContainer = new PIXI.Container();
+    this.uiLayer = new PIXI.Container();
     this.interactionArea = new PIXI.Graphics();
     this.effectManager = new EffectManager(this.gameContainer);
   }
@@ -139,6 +142,7 @@ export class Game {
     this.app.stage.addChild(this.backgroundContainer);
     this.app.stage.addChild(this.gameContainer);
     this.app.stage.addChild(this.menuContainer);
+    this.app.stage.addChild(this.uiLayer);
 
     // Create background grid
     this.createBackground();
@@ -160,7 +164,7 @@ export class Game {
     // await this.createGameObjects(); // Moved to startLevel via menu
 
     // Create UI
-    this.createUI();
+    this.setupCanvasUI();
 
     // Initialize Menu
     this.initMenu();
@@ -318,8 +322,8 @@ export class Game {
       this.autoRestartTimeout = null;
     }
 
-    if (this.penBtn) {
-      this.penBtn.style.display = 'block';
+    if (this.penBtnContainer) {
+      this.penBtnContainer.visible = true;
     }
 
     // Clear balls
@@ -429,8 +433,8 @@ export class Game {
       this.balls.forEach(ball => ball.activate());
       this.fallingObjects.forEach(obj => obj.activate());
 
-      if (this.penBtn) {
-        this.penBtn.style.display = 'none';
+      if (this.penBtnContainer) {
+        this.penBtnContainer.visible = false;
       }
     }
   }
@@ -457,113 +461,73 @@ export class Game {
   /**
    * Create UI overlay
    */
-  private createUI(): void {
-    const container = document.getElementById('app');
-    if (!container) return;
+  /**
+   * Create UI overlay on Canvas
+   */
+  private setupCanvasUI(): void {
+    const btnY = 36;
 
-    // Ensure container is relative for absolute positioning of overlay
-    container.style.position = 'relative';
-
-    // UI Overlay Container
-    const uiOverlay = document.createElement('div');
-    uiOverlay.style.position = 'absolute';
-    uiOverlay.style.top = '0';
-    uiOverlay.style.left = '0';
-    uiOverlay.style.width = '100%';
-    uiOverlay.style.height = '100%';
-    uiOverlay.style.pointerEvents = 'none';
-    uiOverlay.style.zIndex = '10';
-
-    // Restart Button
-    // Restart Button
-    this.restartBtn = document.createElement('button');
-    this.restartBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Restart';
-    this.restartBtn.style.pointerEvents = 'auto';
-    this.restartBtn.style.position = 'absolute';
-    this.restartBtn.style.top = '20px';
-    this.restartBtn.style.right = '20px';
-    this.restartBtn.style.padding = '8px 16px';
-    this.restartBtn.style.fontSize = '16px';
-    this.restartBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-    this.restartBtn.style.color = 'white';
-    this.restartBtn.style.border = '1px solid rgba(255, 255, 255, 0.4)';
-    this.restartBtn.style.borderRadius = '20px';
-    this.restartBtn.style.cursor = 'pointer';
-    this.restartBtn.style.backdropFilter = 'blur(4px)';
-    this.restartBtn.style.transition = 'all 0.2s ease';
-
-    this.restartBtn.addEventListener('mouseenter', () => {
-      if (this.restartBtn) this.restartBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
-    });
-    this.restartBtn.addEventListener('mouseleave', () => {
-      if (this.restartBtn) this.restartBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-    });
-
-    this.restartBtn.addEventListener('click', () => {
-      this.restartLevel();
-    });
-
-    // Home Button
-    this.homeBtn = document.createElement('button');
-    this.homeBtn.innerHTML = '<i class="bi bi-house"></i> Home';
-    this.homeBtn.style.pointerEvents = 'auto';
-    this.homeBtn.style.position = 'absolute';
-    this.homeBtn.style.top = '20px';
-    this.homeBtn.style.right = '1160px';
-    this.homeBtn.style.padding = '8px 16px';
-    this.homeBtn.style.fontSize = '16px';
-    this.homeBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-    this.homeBtn.style.color = 'white';
-    this.homeBtn.style.border = '1px solid rgba(255, 255, 255, 0.4)';
-    this.homeBtn.style.borderRadius = '20px';
-    this.homeBtn.style.cursor = 'pointer';
-    this.homeBtn.style.backdropFilter = 'blur(4px)';
-    this.homeBtn.style.transition = 'all 0.2s ease';
-
-    this.homeBtn.addEventListener('mouseenter', () => {
-      if (this.homeBtn) this.homeBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
-    });
-    this.homeBtn.addEventListener('mouseleave', () => {
-      if (this.homeBtn) this.homeBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-    });
-
-    this.homeBtn.addEventListener('click', () => {
+    // Home Button (Top Left)
+    this.homeBtnContainer = this.createCanvasButton('\uF284', 20, btnY, () => {
       this.showLevelSelection();
     });
+    this.uiLayer.addChild(this.homeBtnContainer);
 
-    // Pen Selection Button
-    // Pen Selection Button
-    this.penBtn = document.createElement('button');
-    this.penBtn.innerHTML = '<i class="bi bi-vector-pen"></i> Pen';
-    this.penBtn.style.pointerEvents = 'auto';
-    this.penBtn.style.position = 'absolute';
-    this.penBtn.style.top = '20px';
-    this.penBtn.style.right = '140px'; // Positioned to the left of Restart
-    this.penBtn.style.padding = '8px 16px';
-    this.penBtn.style.fontSize = '16px';
-    this.penBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-    this.penBtn.style.color = 'white';
-    this.penBtn.style.border = '1px solid rgba(255, 255, 255, 0.4)';
-    this.penBtn.style.borderRadius = '20px';
-    this.penBtn.style.cursor = 'pointer';
-    this.penBtn.style.backdropFilter = 'blur(4px)';
-    this.penBtn.style.transition = 'all 0.2s ease';
-
-    this.penBtn.addEventListener('mouseenter', () => {
-      if (this.penBtn) this.penBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+    // Restart Button (Top Right)
+    // Width approx 70px.
+    const restartX = GAME_WIDTH - 20 - 70;
+    this.restartBtnContainer = this.createCanvasButton('\uF116', restartX, btnY, () => {
+      this.restartLevel();
     });
-    this.penBtn.addEventListener('mouseleave', () => {
-      if (this.penBtn) this.penBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-    });
+    this.uiLayer.addChild(this.restartBtnContainer);
 
-    this.penBtn.addEventListener('click', () => {
+    // Pen Button (Left of Restart)
+    const penX = restartX - 20 - 70;
+    this.penBtnContainer = this.createCanvasButton('\uF604', penX, btnY, () => {
       this.showPenSelection();
     });
+    this.uiLayer.addChild(this.penBtnContainer);
+  }
 
-    uiOverlay.appendChild(this.penBtn);
-    uiOverlay.appendChild(this.restartBtn);
-    uiOverlay.appendChild(this.homeBtn);
-    container.appendChild(uiOverlay);
+  /**
+   * Helper to create a circular icon button
+   */
+  private createCanvasButton(iconChar: string, x: number, y: number, onClick: () => void): PIXI.Container {
+    const size = 52;
+    const container = new PIXI.Container();
+    container.position.set(x, y);
+
+    // Invisible Hit Area
+    const hitArea = new PIXI.Graphics();
+    hitArea.rect(0, 0, size, size);
+    hitArea.fill({ color: 0xFFFFFF, alpha: 0.001 }); // Almost invisible but interactive
+    container.addChild(hitArea);
+
+    // Icon Text
+    const text = new PIXI.Text({
+      text: iconChar,
+      style: {
+        fontFamily: 'bootstrap-icons',
+        fontSize: 60,
+        fill: '#555555', // Changed to dark grey for visibility on light background
+        stroke: { color: '#555555', width: 0.5 }, // Same color as fill to simulate boldness
+        align: 'center',
+        padding: 10 // Prevent clipping of icon glyphs
+      }
+    });
+    text.anchor.set(0.5);
+    text.position.set(size / 2, size / 2);
+    container.addChild(text);
+
+    // Interactivity
+    container.eventMode = 'static';
+    container.cursor = 'pointer';
+
+    container.on('pointerup', () => {
+      onClick();
+    });
+
+    return container;
   }
 
   /**
@@ -1091,19 +1055,27 @@ export class Game {
 
     this.levelSelectionUI = new LevelSelectionUI(levels, (index) => {
       this.startLevel(index);
-    }, this.laserTexture || undefined);
+    }, this.laserTexture || undefined, (pen) => {
+      this.currentPen = pen;
+      if (this.drawingManager) {
+        this.drawingManager.setPen(pen);
+      }
+    }, this.currentPen.id);
     this.menuContainer.addChild(this.levelSelectionUI);
   }
 
   private showLevelSelection(): void {
     this.gameState = GameState.MENU;
+    if (this.levelSelectionUI) {
+      this.levelSelectionUI.setPen(this.currentPen.id);
+    }
     this.clearLevel();
     this.gameContainer.visible = false;
     this.menuContainer.visible = true;
 
-    if (this.penBtn) this.penBtn.style.display = 'none';
-    if (this.restartBtn) this.restartBtn.style.display = 'none';
-    if (this.homeBtn) this.homeBtn.style.display = 'none';
+    if (this.penBtnContainer) this.penBtnContainer.visible = false;
+    if (this.restartBtnContainer) this.restartBtnContainer.visible = false;
+    if (this.homeBtnContainer) this.homeBtnContainer.visible = false;
   }
 
   private async startLevel(index: number): Promise<void> {
@@ -1113,9 +1085,9 @@ export class Game {
 
     await this.loadLevel(index);
 
-    if (this.penBtn) this.penBtn.style.display = 'block';
-    if (this.restartBtn) this.restartBtn.style.display = 'block';
-    if (this.homeBtn) this.homeBtn.style.display = 'block';
+    if (this.penBtnContainer) this.penBtnContainer.visible = true;
+    if (this.restartBtnContainer) this.restartBtnContainer.visible = true;
+    if (this.homeBtnContainer) this.homeBtnContainer.visible = true;
   }
 
   /**
