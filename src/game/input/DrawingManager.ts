@@ -125,11 +125,19 @@ export class DrawingManager {
     // Only add point if it's far enough from the last point
     const lastPoint = this.currentPoints[this.currentPoints.length - 1];
 
-    // If invalid start, we just want to show the specific visual (ghost line + start point)
-    // We do NOT add points to the line.
+    // If invalid start, check if the ORIGINAL start point has become valid
+    // (e.g., the obstacle covering it moved away)
     if (!this.isValidStart) {
-      this.redrawCurrentLine(point);
-      return;
+      const startPoint = this.currentPoints[0];
+      if (this.collisionProvider && this.collisionProvider.isPointValid(startPoint)) {
+        // Start point is now valid! Unlock drawing.
+        this.isValidStart = true;
+        // Proceed to process the current move event (fall through)
+      } else {
+        // Still invalid, just show visual indication
+        this.redrawCurrentLine(point);
+        return;
+      }
     }
 
     // Check for collision
