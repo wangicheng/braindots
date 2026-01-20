@@ -29,7 +29,6 @@ export class Button {
   private sinkProgress: number = 0;
   private sinkCallback: (() => void) | null = null;
   private initialPhysicsPos: { x: number, y: number };
-  private initialPixelPos: { x: number, y: number };
 
   constructor(physicsWorld: PhysicsWorld, config: ButtonConfig) {
     const { x, y, angle = 0 } = config;
@@ -46,7 +45,6 @@ export class Button {
     // Create static body
     const physicsPos = physicsWorld.toPhysics(x, y);
     this.initialPhysicsPos = { x: physicsPos.x, y: physicsPos.y };
-    this.initialPixelPos = { x, y };
 
     const rigidBodyDesc = R.RigidBodyDesc.fixed()
       .setTranslation(physicsPos.x, physicsPos.y)
@@ -102,39 +100,41 @@ export class Button {
   }
 
   /**
-   * Update button state (handles sink animation)
+   * Update button state (handles sink animation and responsive scaling)
+   * @param scaleFactor Current canvas scale factor
    * @param deltaTime Time since last update in seconds
    */
-  update(deltaTime: number): void {
+  update(scaleFactor: number = 1, deltaTime: number = 0): void {
+    // 1. Sync graphics position/rotation for responsiveness
+    const pos = this.body.translation();
+    const bodyAngle = this.body.rotation();
+
+    this.graphics.position.x = pos.x * SCALE * scaleFactor;
+    this.graphics.position.y = -pos.y * SCALE * scaleFactor;
+    this.graphics.rotation = -bodyAngle;
+    this.graphics.scale.set(scaleFactor);
+
+    // 2. Handle sink animation logic
     if (!this.isSinking) return;
 
     this.sinkProgress += deltaTime / SINK_DURATION;
 
     if (this.sinkProgress >= 1) {
-      // Animation complete
       if (this.sinkCallback) {
         this.sinkCallback();
       }
       return;
     }
 
-    // Calculate sink distance
+    // Calculate sink distance in design units
     const sinkDistance = this.verticalBarHeight / 3;
     const currentSink = sinkDistance * this.sinkProgress;
 
-    // Move in the direction of the angle (angle=0 means downward in screen coords)
-    // In Pixi, Y increases downward, so angle=0 should move +Y
+    // Move in the direction of the initial design angle
     const sinkX = -Math.sin(this.angle) * currentSink;
     const sinkY = Math.cos(this.angle) * currentSink;
 
-    // Update visual position
-    this.graphics.position.set(
-      this.initialPixelPos.x + sinkX,
-      this.initialPixelPos.y + sinkY
-    );
-
-    // Update physics body position
-    // Note: Physics Y is inverted relative to screen Y
+    // Update physics body position (using design space increments)
     this.body.setTranslation({
       x: this.initialPhysicsPos.x + (sinkX / SCALE),
       y: this.initialPhysicsPos.y - (sinkY / SCALE)

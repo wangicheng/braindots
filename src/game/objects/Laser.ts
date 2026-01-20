@@ -73,17 +73,29 @@ export class Laser {
   }
 
   /**
-   * Update the laser state (handles flip animation)
+   * Update the laser state (handles flip animation and responsive alignment)
+   * @param scaleFactor Current canvas scale factor
    * @param deltaTime Time since last update in seconds
    */
-  update(deltaTime: number): void {
+  update(scaleFactor: number = 1, deltaTime: number = 0): void {
+    // 1. Handle responsive visual alignment
+    // Lasers visual is relative to start point (x1, y1), but physics is at center.
+    // However, if we follow the pattern:
+    const pos = this.body.translation();
+    const angle = this.body.rotation();
+
+    this.graphics.position.x = pos.x * SCALE * scaleFactor;
+    this.graphics.position.y = -pos.y * SCALE * scaleFactor;
+    this.graphics.rotation = -angle;
+    this.graphics.scale.set(scaleFactor);
+
+    // 2. Handle flip animation
     this.flipTimer += deltaTime;
 
     if (this.flipTimer >= FLIP_INTERVAL) {
       this.flipTimer -= FLIP_INTERVAL;
       this.isFlipped = !this.isFlipped;
 
-      // Flip the sprite vertically (180 degrees)
       if (this.sprite) {
         this.sprite.scale.y = this.isFlipped ? -1 : 1;
       }
@@ -117,8 +129,10 @@ export class Laser {
 
     // Create container positioned at the start point
     const graphics = new PIXI.Container();
-    graphics.x = x1;
-    graphics.y = y1;
+    // Position/rotation will be handled by update(), but initial setup is nice
+    const centerX = (x1 + x2) / 2;
+    const centerY = (y1 + y2) / 2;
+    graphics.position.set(centerX, centerY);
     graphics.rotation = angle;
 
     // Create tiling sprite for the laser pattern
@@ -129,8 +143,8 @@ export class Laser {
       height: laserHeight,
     });
 
-    // Center the sprite vertically on the line
-    sprite.anchor.set(0, 0.5);
+    // Center the sprite horizontally on the physics body position (middle)
+    sprite.anchor.set(0.5, 0.5);
     graphics.addChild(sprite);
 
     return graphics;

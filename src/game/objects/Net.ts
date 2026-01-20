@@ -51,6 +51,25 @@ export class Net {
   }
 
   /**
+   * Update graphics position from physics body to ensure responsive alignment
+   */
+  update(scaleFactor: number = 1): void {
+    const pos = this.body.translation();
+    const angle = this.body.rotation();
+
+    // The visual anchor for Net is top-left, but physics body is at center.
+    // However, if we follow the same pattern as others:
+    // Actually, for Net, the creator set it up with top-left anchor.
+    // Let's fix that to use center anchor for easier scaling/positioning in update.
+
+    // Instead of complex math, just scale and reposition the container
+    this.graphics.position.x = pos.x * SCALE * scaleFactor;
+    this.graphics.position.y = -pos.y * SCALE * scaleFactor;
+    this.graphics.rotation = -angle;
+    this.graphics.scale.set(scaleFactor);
+  }
+
+  /**
    * Clean up resources
    */
   destroy(physicsWorld: PhysicsWorld): void {
@@ -62,6 +81,7 @@ export class Net {
     const graphics = new PIXI.Container();
     graphics.x = config.x;
     graphics.y = config.y;
+    // We will set pos/rotation in update, but initial setup helps
     if (config.angle) {
       graphics.rotation = config.angle * (Math.PI / 180);
     }
@@ -80,12 +100,17 @@ export class Net {
     mask.roundRect(0, 0, config.width, config.height, radius);
     mask.fill(0xffffff);
     sprite.mask = mask;
+
+    // Center the content relative to the container for easier rotation/scaling
+    sprite.position.set(-config.width / 2, -config.height / 2);
+    mask.position.set(-config.width / 2, -config.height / 2);
+
     graphics.addChild(sprite);
-    graphics.addChild(mask); // Add mask to container
+    graphics.addChild(mask);
 
     // Create border
     const border = new PIXI.Graphics();
-    border.roundRect(0, 0, config.width, config.height, radius);
+    border.roundRect(-config.width / 2, -config.height / 2, config.width, config.height, radius);
     border.stroke({ width: 2, color: 0x808080 }); // #808080 border
     graphics.addChild(border);
 

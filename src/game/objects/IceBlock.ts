@@ -72,10 +72,21 @@ export class IceBlock {
 
   /**
    * Update the ice block state
+   * @param scaleFactor Current canvas scale factor
    * @param deltaTime Time since last update in seconds
    * @returns true if the ice block has fully melted and should be removed
    */
-  update(deltaTime: number): boolean {
+  update(scaleFactor: number = 1, deltaTime: number = 0): boolean {
+    // 1. Handle responsive visual alignment
+    const pos = this.body.translation();
+    const angle = this.body.rotation();
+
+    this.graphics.position.x = pos.x * SCALE * scaleFactor;
+    this.graphics.position.y = -pos.y * SCALE * scaleFactor;
+    this.graphics.rotation = -angle;
+    this.graphics.scale.set(scaleFactor);
+
+    // 2. Handle melting logic
     if (!this.isMelting) return false;
 
     // Update melt progress
@@ -85,20 +96,7 @@ export class IceBlock {
       return true; // Fully melted
     }
 
-    // Redraw with updated alpha (simplification: update alpha directly on graphics instead of redrawing)
-    // The createVisual method returns a Graphics object with a filled rect.
-    // We can just update alpha on the graphics object itself.
-    this.graphics.alpha = 1 - this.meltProgress; // This affects the whole container/graphics
-
-    // Original code redrew. But setting alpha on container/graphics is more efficient and equivalent if only alpha changes.
-    // However, original code used: this.graphics.fill({ color: ICE_BLOCK_COLOR, alpha: this.initialAlpha * (1 - this.meltProgress) });
-    // And this.graphics.rect...
-
-    // If we use graphics.alpha, it multiplies with the fill alpha.
-    // Initial alpha is 0.5 (ICE_BLOCK_ALPHA). 
-    // If we set graphics.alpha, we need to ensure it matches logic.
-    // Logic: alpha = initial * (1 - progress).
-    // If we set graphics.alpha = 1 - progress, and fill was drawn with initial, result is initial * (1 - progress). Correct.
+    this.graphics.alpha = 1 - this.meltProgress;
 
     return false;
   }

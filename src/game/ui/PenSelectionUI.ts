@@ -1,6 +1,6 @@
 
 import * as PIXI from 'pixi.js';
-import { GAME_WIDTH, GAME_HEIGHT } from '../config';
+import { getCanvasWidth, getCanvasHeight, scale } from '../config';
 import { PENS } from '../data/PenData';
 import type { Pen } from '../data/PenData';
 
@@ -18,16 +18,23 @@ export class PenSelectionUI extends PIXI.Container {
   private onSelectCallback: (pen: Pen) => void;
   private onCloseCallback: () => void;
 
-  // Layout Constants
-  private readonly CARD_WIDTH = 755;
-  private readonly CARD_HEIGHT = 500;
-  private readonly ITEM_SPACING = 150;
-  private readonly CENTER_X = 755 / 2;
+  // Layout Constants (Design reference)
+  private readonly DESIGN_CARD_WIDTH = 755;
+  private readonly DESIGN_CARD_HEIGHT = 500;
+  private readonly DESIGN_ITEM_SPACING = 150;
+
+  // Actual values (scaled)
+  private cardWidth = 0;
+  private cardHeight = 0;
+  private itemSpacing = 0;
+  private centerX = 0;
 
   constructor(onSelect: (pen: Pen) => void, onClose: () => void, initialPenId?: string) {
     super();
     this.onSelectCallback = onSelect;
     this.onCloseCallback = onClose;
+
+    this.updateLayoutValues();
 
     this.createOverlay();
     this.createCard();
@@ -40,40 +47,67 @@ export class PenSelectionUI extends PIXI.Container {
       if (initialIndex === -1) initialIndex = 0;
     }
     this.centerOnIndex(initialIndex);
-    this.scrollX = this.targetScrollX; // Jump immediately, no animation for initial open
+    this.scrollX = this.targetScrollX;
 
-    // Animate loop for smooth scrolling
     PIXI.Ticker.shared.add(this.update, this);
+
+    // Listen for resize
+    window.addEventListener('resize', this.handleResize);
+  }
+
+  private updateLayoutValues(): void {
+    this.cardWidth = scale(this.DESIGN_CARD_WIDTH);
+    this.cardHeight = scale(this.DESIGN_CARD_HEIGHT);
+    this.itemSpacing = scale(this.DESIGN_ITEM_SPACING);
+    this.centerX = this.cardWidth / 2;
+  }
+
+  private handleResize = (): void => {
+    this.updateLayoutValues();
+    this.refreshUI();
+  };
+
+  private refreshUI(): void {
+    this.removeChildren();
+    this.penItems = [];
+
+    this.createOverlay();
+    this.createCard();
+    this.setupInteractions();
+
+    // Maintain selection
+    this.centerOnIndex(this.selectedPenIndex);
+    this.scrollX = this.targetScrollX;
   }
 
   private createOverlay(): void {
     this.overlay = new PIXI.Graphics();
-    this.overlay.rect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    this.overlay.rect(0, 0, getCanvasWidth(), getCanvasHeight());
     this.overlay.fill({ color: 0x000000, alpha: 0.35 });
-    this.overlay.eventMode = 'static'; // Block clicks below
+    this.overlay.eventMode = 'static';
     this.addChild(this.overlay);
   }
 
   private createCard(): void {
     this.card = new PIXI.Container();
     this.card.position.set(
-      (GAME_WIDTH - this.CARD_WIDTH) / 2,
-      (GAME_HEIGHT - this.CARD_HEIGHT) / 2
+      (getCanvasWidth() - this.cardWidth) / 2,
+      (getCanvasHeight() - this.cardHeight) / 2
     );
     this.addChild(this.card);
 
     // Shadow
     const shadow = new PIXI.Graphics();
-    shadow.roundRect(0, 8, this.CARD_WIDTH, this.CARD_HEIGHT, 0);
+    shadow.roundRect(0, scale(8), this.cardWidth, this.cardHeight, 0);
     shadow.fill({ color: 0x000000, alpha: 0.2 });
     const blur = new PIXI.BlurFilter();
-    blur.strength = 10;
+    blur.strength = scale(10);
     shadow.filters = [blur];
     this.card.addChild(shadow);
 
     // Background
     const bg = new PIXI.Graphics();
-    bg.roundRect(0, 0, this.CARD_WIDTH, this.CARD_HEIGHT, 0); // No rounded corners as requested ("完美的長方形")
+    bg.roundRect(0, 0, this.cardWidth, this.cardHeight, 0);
     bg.fill(0xFFFFFF);
     this.card.addChild(bg);
 
@@ -88,12 +122,12 @@ export class PenSelectionUI extends PIXI.Container {
   }
 
   private createHeader(): void {
-    const headerY = 30;
+    const headerY = scale(30);
 
     // Status Badge (Left)
     const badge = new PIXI.Container();
     const badgeBg = new PIXI.Graphics();
-    badgeBg.roundRect(0, 0, 164, 60, 30);
+    badgeBg.roundRect(0, 0, scale(164), scale(60), scale(30));
     badgeBg.fill(0xF2F2F2);
     badge.addChild(badgeBg);
 
@@ -101,38 +135,38 @@ export class PenSelectionUI extends PIXI.Container {
       text: '\uF604',
       style: {
         fontFamily: 'bootstrap-icons',
-        fontSize: 36,
+        fontSize: scale(36),
         fill: 0x555555
       }
-    }); // Icon for current selection or general pen icon
-    penIcon.position.set(12, 16);
+    });
+    penIcon.position.set(scale(12), scale(16));
     badge.addChild(penIcon);
 
-    const countText = new PIXI.Text({ text: `${PENS.length} / ${PENS.length}`, style: { fontFamily: 'Arial', fontSize: 28, fill: 0x555555 } });
-    countText.position.set(55, 14);
+    const countText = new PIXI.Text({ text: `${PENS.length} / ${PENS.length}`, style: { fontFamily: 'Arial', fontSize: scale(28), fill: 0x555555 } });
+    countText.position.set(scale(55), scale(14));
     badge.addChild(countText);
 
-    badge.position.set(30, headerY);
+    badge.position.set(scale(30), headerY);
     this.card.addChild(badge);
 
     // Title (Center)
-    const title = new PIXI.Text({ text: 'Choose a pen', style: { fontFamily: 'Arial', fontSize: 40, fill: 0x3E3E3E } });
+    const title = new PIXI.Text({ text: 'Choose a pen', style: { fontFamily: 'Arial', fontSize: scale(40), fill: 0x3E3E3E } });
     title.anchor.set(0.5, 0);
-    title.position.set(this.CARD_WIDTH / 2, headerY);
+    title.position.set(this.cardWidth / 2, headerY);
     this.card.addChild(title);
 
     // Close Button (Right)
     const closeBtn = new PIXI.Container();
     const closeBg = new PIXI.Graphics();
-    closeBg.circle(0, 0, 25);
+    closeBg.circle(0, 0, scale(25));
     closeBg.fill(0x555555);
     closeBtn.addChild(closeBg);
 
-    const closeText = new PIXI.Text({ text: '×', style: { fontFamily: 'Arial', fontSize: 40, fill: 0xFFFFFF } });
+    const closeText = new PIXI.Text({ text: '×', style: { fontFamily: 'Arial', fontSize: scale(40), fill: 0xFFFFFF } });
     closeText.anchor.set(0.5);
     closeBtn.addChild(closeText);
 
-    closeBtn.position.set(this.CARD_WIDTH - 30 - 25, headerY + 25);
+    closeBtn.position.set(this.cardWidth - scale(30 + 25), headerY + scale(25));
     closeBtn.eventMode = 'static';
     closeBtn.cursor = 'pointer';
     closeBtn.on('pointertap', this.onCloseCallback);
@@ -142,7 +176,7 @@ export class PenSelectionUI extends PIXI.Container {
   private createCarousel(): void {
     // Mask
     const mask = new PIXI.Graphics();
-    mask.rect(0, 100, this.CARD_WIDTH, 300);
+    mask.rect(0, scale(100), this.cardWidth, scale(300));
     mask.fill(0xFF0000);
     this.card.addChild(mask);
 
@@ -153,8 +187,8 @@ export class PenSelectionUI extends PIXI.Container {
     // Create Items
     PENS.forEach((pen, index) => {
       const item = this.createPenItem(pen);
-      item.x = index * this.ITEM_SPACING;
-      item.y = 230; // Vertical center of carousel area
+      item.x = index * this.itemSpacing;
+      item.y = scale(230);
       this.carouselContainer.addChild(item);
       this.penItems.push(item);
     });
@@ -167,13 +201,13 @@ export class PenSelectionUI extends PIXI.Container {
     const gfx = new PIXI.Graphics();
 
     // Pen body
-    gfx.rect(-10, -60, 20, 120);
+    gfx.rect(scale(-10), scale(-60), scale(20), scale(120));
     gfx.fill(pen.color);
 
     // Pen tip
-    gfx.moveTo(-10, 60);
-    gfx.lineTo(0, 80);
-    gfx.lineTo(10, 60);
+    gfx.moveTo(scale(-10), scale(60));
+    gfx.lineTo(0, scale(80));
+    gfx.lineTo(scale(10), scale(60));
     gfx.fill(0x333333);
 
     // Apply scaling and rotation
@@ -181,9 +215,9 @@ export class PenSelectionUI extends PIXI.Container {
     gfx.angle = 30;
 
     // Label
-    const text = new PIXI.Text({ text: pen.name, style: { fontFamily: 'Arial', fontSize: 20, fill: 0x333333 } });
+    const text = new PIXI.Text({ text: pen.name, style: { fontFamily: 'Arial', fontSize: scale(20), fill: 0x333333 } });
     text.anchor.set(0.5);
-    text.y = 130;
+    text.y = scale(130);
 
     item.addChild(gfx);
     item.addChild(text);
@@ -193,19 +227,19 @@ export class PenSelectionUI extends PIXI.Container {
 
   private createFooter(): void {
     const btn = new PIXI.Container();
-    const btnWidth = 210;
-    const btnHeight = 67;
+    const btnWidth = scale(210);
+    const btnHeight = scale(67);
 
     const bg = new PIXI.Graphics();
     bg.roundRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, btnHeight / 2);
     bg.fill(0x37A4E9);
     btn.addChild(bg);
 
-    const text = new PIXI.Text({ text: 'Use', style: { fontFamily: 'Arial', fontSize: 28, fill: 0xFFFFFF } });
+    const text = new PIXI.Text({ text: 'Use', style: { fontFamily: 'Arial', fontSize: scale(28), fill: 0xFFFFFF } });
     text.anchor.set(0.5);
     btn.addChild(text);
 
-    btn.position.set(this.CARD_WIDTH / 2, this.CARD_HEIGHT - 60);
+    btn.position.set(this.cardWidth / 2, this.cardHeight - scale(60));
     btn.eventMode = 'static';
     btn.cursor = 'pointer';
     btn.on('pointertap', () => {
@@ -219,8 +253,8 @@ export class PenSelectionUI extends PIXI.Container {
   private setupInteractions(): void {
     // Touch/Drag on carousel area
     const hitArea = new PIXI.Graphics();
-    hitArea.rect(0, 100, this.CARD_WIDTH, 300);
-    hitArea.fill({ color: 0x000000, alpha: 0 }); // Transparent hit area
+    hitArea.rect(0, scale(100), this.cardWidth, scale(300));
+    hitArea.fill({ color: 0x000000, alpha: 0 });
     hitArea.eventMode = 'static';
     hitArea.cursor = 'grab';
     this.card.addChild(hitArea);
@@ -236,7 +270,7 @@ export class PenSelectionUI extends PIXI.Container {
       if (!this.isDragging) return;
       const delta = e.global.x - this.dragStartX;
       this.scrollX = this.dragStartScrollX - delta;
-      this.targetScrollX = this.scrollX; // Sync target to follow finger directly
+      this.targetScrollX = this.scrollX;
     };
 
     const onDragEnd = (e: PIXI.FederatedPointerEvent) => {
@@ -246,14 +280,13 @@ export class PenSelectionUI extends PIXI.Container {
 
       const dragDistance = Math.abs(e.global.x - this.dragStartX);
 
-      // If swift tap (not drag) and released inside, scroll to clicked item
       if (e.type !== 'pointerupoutside' && dragDistance < 10) {
         const localPoint = this.carouselContainer.toLocal(e.global);
-        const index = Math.round(localPoint.x / this.ITEM_SPACING);
+        const index = Math.round(localPoint.x / this.itemSpacing);
         this.centerOnIndex(index);
       } else {
         // Snap to nearest
-        const index = Math.round(this.scrollX / this.ITEM_SPACING);
+        const index = Math.round(this.scrollX / this.itemSpacing);
         this.centerOnIndex(index);
       }
     };
@@ -268,16 +301,7 @@ export class PenSelectionUI extends PIXI.Container {
     index = Math.max(0, Math.min(index, PENS.length - 1));
     this.selectedPenIndex = index;
 
-    // Calculate scroll position where this item is in the center
-    // Item X is index * SPACING
-    // We want Item X to be at CENTER_X relative to the container?
-    // No, scrollX is the offset of the container. 
-    // Container X = -scrollX + initialOffset
-    // We want (index * SPACING) + ContainerX = CENTER_X
-    // (index * SPACING) - targetScrollX + WIDTH/2 = CENTER_X (which is WIDTH/2)
-    // So targetScrollX = index * SPACING
-
-    this.targetScrollX = index * this.ITEM_SPACING;
+    this.targetScrollX = index * this.itemSpacing;
   }
 
   private update(): void {
@@ -290,25 +314,26 @@ export class PenSelectionUI extends PIXI.Container {
 
     // Update container position
     // We want the scrollX point to be at the center of the screen
-    // Visual Offset = CENTER_X - scrollX
-    this.carouselContainer.x = this.CENTER_X - this.scrollX;
+    // Visual Offset = centerX - scrollX
+    this.carouselContainer.x = this.centerX - this.scrollX;
 
     // Update Scales based on distance from center
     this.penItems.forEach((item) => {
       const itemGlobalX = this.carouselContainer.x + item.x;
-      const distFromCenter = Math.abs(itemGlobalX - this.CENTER_X);
+      const distFromCenter = Math.abs(itemGlobalX - this.centerX);
 
       // Scale calculation: 1.0 at center, 0.4 at spacing distance
-      let scale = 1.0 - (distFromCenter / this.ITEM_SPACING) * 0.6;
-      scale = Math.max(0.4, scale); // Min scale
+      let scaleValue = 1.0 - (distFromCenter / this.itemSpacing) * 0.6;
+      scaleValue = Math.max(0.4, scaleValue);
 
-      item.scale.set(scale);
-      item.alpha = Math.max(0.5, scale); // Fade out slightly
+      item.scale.set(scaleValue);
+      item.alpha = Math.max(0.5, scaleValue);
     });
   }
 
   destroy(options?: any): void {
     PIXI.Ticker.shared.remove(this.update, this);
+    window.removeEventListener('resize', this.handleResize);
     super.destroy(options);
   }
 }

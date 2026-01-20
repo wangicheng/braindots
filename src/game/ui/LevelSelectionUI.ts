@@ -1,6 +1,6 @@
 
 import * as PIXI from 'pixi.js';
-import { GAME_WIDTH, GAME_HEIGHT } from '../config';
+import { getCanvasWidth, getCanvasHeight, scale, DESIGN_WIDTH, DESIGN_HEIGHT } from '../config';
 import type { LevelData } from '../levels/LevelSchema';
 import { Ball } from '../objects/Ball';
 import { Obstacle } from '../objects/Obstacle';
@@ -49,12 +49,15 @@ export class LevelSelectionUI extends PIXI.Container {
   private filterFilterTagContainer?: PIXI.Container;
   private createLevelBtn?: PIXI.Container;
 
-  // Constants for Layout
-  private readonly HEADER_HEIGHT = GAME_HEIGHT / 5;
+  // Constants for Layout (as ratios of canvas height)
+  private readonly HEADER_HEIGHT_RATIO = 1 / 5;
   private readonly COLS = 3;
   private readonly ROWS = 2;
   private readonly ITEMS_PER_PAGE = 6;
   private readonly CARD_ASPECT_RATIO = 16 / 9;
+
+  // Cached layout values
+  private backgroundHitArea: PIXI.Graphics | null = null;
 
   constructor(
     levels: LevelData[],
@@ -87,37 +90,34 @@ export class LevelSelectionUI extends PIXI.Container {
   }
 
   private setupHeader(): void {
-    // 1. Background for Header? (Transparent as per requirement, buttons float)
-    // Actually requirement says "Background Layer: Graph Paper Pattern" covers full screen.
-    // So Header sits on top.
+    const canvasWidth = getCanvasWidth();
+    const headerHeight = this.getHeaderHeight();
 
     // 2. Branding (Left)
     const titleStyle = new PIXI.TextStyle({
-      fontFamily: 'Arial', // Or a handwritten font if available
-      fontSize: 60,
+      fontFamily: 'Arial',
+      fontSize: scale(60),
       fontWeight: 'bold',
       fill: '#555555',
     });
     const title = new PIXI.Text({ text: 'Brain Dots', style: titleStyle });
-    title.position.set(60, (this.HEADER_HEIGHT - title.height) / 2); // Vertically centered
+    title.position.set(scale(60), (headerHeight - title.height) / 2);
     this.headerContainer.addChild(title);
 
     // 2.5 Sorting / Filtering UI (Center-Right)
-    const sortY = (this.HEADER_HEIGHT + 10) / 2;
-    // Shift sort buttons left to make room for filter tag
-    const sortX = GAME_WIDTH / 2 - 140;
+    const sortY = (headerHeight + scale(10)) / 2;
+    const sortX = canvasWidth / 2 - scale(140);
 
     // "Latest" Button
     this.latestBtnText = this.createSortButton('Latest', sortX, sortY, 'latest');
     this.headerContainer.addChild(this.latestBtnText);
 
     // "Popular" Button
-    this.popularBtnText = this.createSortButton('Popular', sortX + 100, sortY, 'popular');
+    this.popularBtnText = this.createSortButton('Popular', sortX + scale(100), sortY, 'popular');
     this.headerContainer.addChild(this.popularBtnText);
 
     // "Mine" Button
-    this.mineBtnText = this.createHeaderInteractiveText('Mine', sortX + 220, sortY, () => {
-      // Toggle "Mine" filter
+    this.mineBtnText = this.createHeaderInteractiveText('Mine', sortX + scale(220), sortY, () => {
       if (this.filterAuthorId === CURRENT_USER_ID) {
         this.setFilterAuthor(null);
       } else {
@@ -128,39 +128,45 @@ export class LevelSelectionUI extends PIXI.Container {
 
     // Filter Tag Component (Initially hidden/empty)
     this.filterFilterTagContainer = new PIXI.Container();
-    // Position closer to the action buttons (Pen is at ~1100)
-    this.filterFilterTagContainer.position.set(GAME_WIDTH - 220, sortY);
+    this.filterFilterTagContainer.position.set(canvasWidth - scale(220), sortY);
     this.headerContainer.addChild(this.filterFilterTagContainer);
-    // Render initial empty state
     this.updateFilterTag();
 
     this.updateSortButtons();
 
     // 3. Action Area (Right)
-    const btnY = 36;
+    const btnY = scale(36);
+    const btnSize = scale(52);
+    const btnSpacing = scale(20);
 
-    // List Icon (Rightmost, matching Restart button position in Game.ts)
+    // List Icon (Rightmost)
     const listBtn = this.createHeaderButton('\uF479');
-    const listX = GAME_WIDTH - 20 - 70;
+    const listX = canvasWidth - scale(20) - btnSize;
     listBtn.position.set(listX, btnY);
     this.headerContainer.addChild(listBtn);
 
-    // Pen Icon (Left of List, matching Pen button position in Game.ts)
+    // Pen Icon (Left of List)
     const penBtn = this.createHeaderButton('\uF604');
-    const penX = listX - 20 - 70;
+    const penX = listX - btnSpacing - btnSize;
     penBtn.position.set(penX, btnY);
     penBtn.on('pointertap', () => this.showPenSelection());
-
     this.headerContainer.addChild(penBtn);
 
     // 4. Floating Action Button (Create Level) - Bottom Right
     this.createLevelBtn = this.createFloatingActionButton();
-    this.createLevelBtn.visible = false; // Hidden by default
+    this.createLevelBtn.visible = false;
     this.addChild(this.createLevelBtn);
   }
 
+  /**
+   * Get current header height based on canvas size
+   */
+  private getHeaderHeight(): number {
+    return getCanvasHeight() * this.HEADER_HEIGHT_RATIO;
+  }
+
   private createFloatingActionButton(): PIXI.Container {
-    const size = 64;
+    const size = scale(64);
     const container = new PIXI.Container();
 
     // Shadow
@@ -174,7 +180,7 @@ export class LevelSelectionUI extends PIXI.Container {
     // Button Circle
     const circle = new PIXI.Graphics();
     circle.circle(0, 0, size / 2);
-    circle.fill(0x555555); // Dark Gray
+    circle.fill(0x555555);
     container.addChild(circle);
 
     // Plus Icon
@@ -182,25 +188,23 @@ export class LevelSelectionUI extends PIXI.Container {
       text: '+',
       style: {
         fontFamily: 'Arial',
-        fontSize: 40,
+        fontSize: scale(40),
         fill: '#FFFFFF',
         fontWeight: 'bold'
       }
     });
     plus.anchor.set(0.5);
-    plus.position.set(0, 0); // Reset to center
+    plus.position.set(0, 0);
     container.addChild(plus);
 
     // Position (Bottom Right, with padding)
-    container.position.set(GAME_WIDTH - 50, GAME_HEIGHT - 50);
+    container.position.set(getCanvasWidth() - scale(50), getCanvasHeight() - scale(50));
 
     // Interaction
     container.eventMode = 'static';
     container.cursor = 'pointer';
     container.on('pointertap', () => {
       console.log('Create Level Attempt');
-      // Logic for creating level will go here
-      // For now, maybe show a toast or log
     });
 
     return container;
@@ -217,7 +221,7 @@ export class LevelSelectionUI extends PIXI.Container {
       text: text,
       style: {
         fontFamily: 'Arial',
-        fontSize: 24,
+        fontSize: scale(24),
         fill: '#AAAAAA',
         fontWeight: 'normal'
       }
@@ -254,13 +258,13 @@ export class LevelSelectionUI extends PIXI.Container {
   }
 
   private createHeaderButton(iconChar: string): PIXI.Container {
-    const size = 52;
+    const size = scale(52);
     const container = new PIXI.Container();
 
     // Invisible Hit Area
     const hitArea = new PIXI.Graphics();
     hitArea.rect(0, 0, size, size);
-    hitArea.fill({ color: 0xFFFFFF, alpha: 0.001 }); // Almost invisible but interactive
+    hitArea.fill({ color: 0xFFFFFF, alpha: 0.001 });
     container.addChild(hitArea);
 
     // Icon Text
@@ -268,11 +272,11 @@ export class LevelSelectionUI extends PIXI.Container {
       text: iconChar,
       style: {
         fontFamily: 'bootstrap-icons',
-        fontSize: 60,
+        fontSize: scale(60),
         fill: '#555555',
         stroke: { color: '#555555', width: 0.5 },
         align: 'center',
-        padding: 10 // Prevent clipping of icon glyphs
+        padding: scale(10)
       }
     });
     text.anchor.set(0.5);
@@ -289,11 +293,12 @@ export class LevelSelectionUI extends PIXI.Container {
   private setupGrid(): void {
     // Clear existing grid children first (for re-render)
     this.gridContainer.removeChildren();
+    const canvasWidth = getCanvasWidth();
 
     // Render all pages horizontally
     for (let p = 0; p < this.totalPages; p++) {
       const pageContainer = new PIXI.Container();
-      pageContainer.x = p * GAME_WIDTH;
+      pageContainer.x = p * canvasWidth;
       this.gridContainer.addChild(pageContainer);
 
       const startIndex = p * this.ITEMS_PER_PAGE;
@@ -304,22 +309,20 @@ export class LevelSelectionUI extends PIXI.Container {
   }
 
   private renderPage(container: PIXI.Container, startIndex: number, endIndex: number): void {
-    // Calculate Card Size and Spacing
-    const areaWidth = GAME_WIDTH;
-    const areaHeight = GAME_HEIGHT - this.HEADER_HEIGHT;
+    const canvasWidth = getCanvasWidth();
+    const canvasHeight = getCanvasHeight();
+    const headerHeight = this.getHeaderHeight();
+    const areaWidth = canvasWidth;
+    const areaHeight = canvasHeight - headerHeight;
 
-    // Layout Logic
-    // We want 3 columns, 2 rows. 
-    // Gaps: Let's aim for equal gaps. 4 gaps horizontal, 3 gaps vertical.
-
-    const maxCardWidth = (areaWidth * 0.7) / this.COLS; // 70% width usage
+    const maxCardWidth = (areaWidth * 0.7) / this.COLS;
     const cardWidth = Math.floor(maxCardWidth);
     const cardHeight = Math.floor(cardWidth / this.CARD_ASPECT_RATIO);
 
     const hGap = (areaWidth - (cardWidth * this.COLS)) / (this.COLS + 1);
     const vGap = (areaHeight - (cardHeight * this.ROWS)) / (this.ROWS + 1);
 
-    const startY = this.HEADER_HEIGHT + vGap;
+    const startY = headerHeight + vGap;
 
     for (let i = startIndex; i < endIndex; i++) {
       const localIndex = i - startIndex;
@@ -524,10 +527,9 @@ export class LevelSelectionUI extends PIXI.Container {
   private createLevelThumbnail(levelData: LevelData, width: number, height: number): PIXI.Container {
     const container = new PIXI.Container();
 
-    // Scale Factor
-    // Game is GAME_WIDTH x GAME_HEIGHT. We need to fit into width x height.
-    const scale = Math.min(width / GAME_WIDTH, height / GAME_HEIGHT);
-    container.scale.set(scale);
+    // Scale Factor - use DESIGN dimensions for consistent level layout
+    const thumbnailScale = Math.min(width / DESIGN_WIDTH, height / DESIGN_HEIGHT);
+    container.scale.set(thumbnailScale);
 
     // Card background is white, so we don't need to clear.
 
@@ -583,22 +585,24 @@ export class LevelSelectionUI extends PIXI.Container {
   }
 
   private setupInteraction(): void {
+    const canvasWidth = getCanvasWidth();
+    const canvasHeight = getCanvasHeight();
+    const headerHeight = this.getHeaderHeight();
+
     // Swipe Logic on the Grid Container or Main Container
-    // We need a hit area for the whole screen
-    const hitArea = new PIXI.Graphics();
-    hitArea.rect(0, this.HEADER_HEIGHT, GAME_WIDTH, GAME_HEIGHT - this.HEADER_HEIGHT);
-    hitArea.fill({ color: 0x000000, alpha: 0 }); // Invisible
-    this.addChildAt(hitArea, 0); // Behind everything but captures clicks background of grid
+    this.backgroundHitArea = new PIXI.Graphics();
+    this.backgroundHitArea.rect(0, headerHeight, canvasWidth, canvasHeight - headerHeight);
+    this.backgroundHitArea.fill({ color: 0x000000, alpha: 0 });
+    this.addChildAt(this.backgroundHitArea, 0);
 
     this.eventMode = 'static';
 
     this.on('pointerdown', (e) => {
-      // If PenSelectionUI or UserProfileCard is open, do not handle background swipes
       if (this.penSelectionUI || this.userProfileCard) return;
 
       this.isDragging = true;
       this.dragStartX = e.global.x;
-      this.dragDistance = 0; // Reset distance on every new touch
+      this.dragDistance = 0;
       this.dragStartPageX = this.gridContainer.x;
     });
 
@@ -607,10 +611,7 @@ export class LevelSelectionUI extends PIXI.Container {
       const currentX = e.global.x;
       const diff = currentX - this.dragStartX;
 
-      // Update max displacement
       this.dragDistance = Math.max(this.dragDistance, Math.abs(diff));
-
-      // Drag the grid
       this.gridContainer.x = this.dragStartPageX + diff;
     });
 
@@ -639,7 +640,8 @@ export class LevelSelectionUI extends PIXI.Container {
   }
 
   private scrollToPage(pageIndex: number): void {
-    const targetX = -pageIndex * GAME_WIDTH;
+    const canvasWidth = getCanvasWidth();
+    const targetX = -pageIndex * canvasWidth;
 
     // Simple tween
     // Since we don't have a tween engine installed (probably), let's just slide using a ticker or CSS-like transition?
@@ -873,5 +875,39 @@ export class LevelSelectionUI extends PIXI.Container {
     // 4. Re-render
     this.gridContainer.x = 0;
     this.setupGrid();
+  }
+
+  /**
+   * Update entire layout on resize
+   */
+  public updateLayout(): void {
+    // 1. Clear Containers
+    this.headerContainer.removeChildren();
+    if (this.backgroundHitArea) {
+      this.removeChild(this.backgroundHitArea);
+      this.backgroundHitArea.destroy();
+      this.backgroundHitArea = null;
+    }
+
+    // 2. Re-setup
+    this.setupHeader();
+    this.setupGrid();
+    this.setupInteraction();
+
+    // 3. Reset pagination if out of bounds
+    if (this.currentPage >= this.totalPages) {
+      this.currentPage = Math.max(0, this.totalPages - 1);
+    }
+    this.gridContainer.x = -this.currentPage * getCanvasWidth();
+
+    // 4. Update children if visible
+    if (this.penSelectionUI) {
+      // PenSelectionUI handles its own layout on resize if we pass it, 
+      // but usually we just re-instantiate or it handles it.
+      // Let's check PenSelectionUI later.
+    }
+    if (this.userProfileCard) {
+      // similar
+    }
   }
 }

@@ -90,14 +90,17 @@ export class Ball {
   /**
    * Update graphics position from physics body
    */
-  update(): void {
+  update(scaleFactor: number = 1): void {
     const pos = this.body.translation();
     const angle = this.body.rotation();
 
-    // Convert physics coordinates to pixel coordinates
-    this.graphics.position.x = pos.x * SCALE;
-    this.graphics.position.y = -pos.y * SCALE;
+    // Convert physics coordinates to pixel coordinates and apply responsive scaling
+    this.graphics.position.x = pos.x * SCALE * scaleFactor;
+    this.graphics.position.y = -pos.y * SCALE * scaleFactor;
     this.graphics.rotation = -angle;
+
+    // Scale the graphics itself if needed (though it should be created at scaled size)
+    this.graphics.scale.set(scaleFactor);
   }
 
   /**

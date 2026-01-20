@@ -1,7 +1,16 @@
 import * as PIXI from 'pixi.js';
-import { GAME_WIDTH, GAME_HEIGHT } from '../../config';
+import { getCanvasWidth, getCanvasHeight, scale } from '../../config';
 
 export class ConfirmDialog extends PIXI.Container {
+  private message: string;
+  private onConfirmCallback: () => void;
+  private onCancelCallback: () => void;
+  private options: {
+    confirmText?: string;
+    cancelText?: string;
+    showCancel?: boolean;
+  };
+
   constructor(
     message: string,
     onConfirm: () => void,
@@ -13,33 +22,53 @@ export class ConfirmDialog extends PIXI.Container {
     }
   ) {
     super();
+    this.message = message;
+    this.onConfirmCallback = onConfirm;
+    this.onCancelCallback = onCancel;
+    this.options = options || {};
 
-    const confirmText = options?.confirmText || 'Confirm';
-    const cancelText = options?.cancelText || 'Cancel';
-    const showCancel = options?.showCancel !== false;
+    this.refreshUI();
 
-    this.zIndex = 2000; // High zIndex to be on top
+    // Listen for resize
+    window.addEventListener('resize', this.handleResize);
+  }
+
+  private handleResize = (): void => {
+    this.refreshUI();
+  };
+
+  private refreshUI(): void {
+    this.removeChildren();
+
+    const confirmText = this.options.confirmText || 'Confirm';
+    const cancelText = this.options.cancelText || 'Cancel';
+    const showCancel = this.options.showCancel !== false;
+
+    const canvasWidth = getCanvasWidth();
+    const canvasHeight = getCanvasHeight();
+
+    this.zIndex = 2000;
 
     // 1. Dimmed Background
     const overlay = new PIXI.Graphics();
-    overlay.rect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    overlay.rect(0, 0, canvasWidth, canvasHeight);
     overlay.fill({ color: 0x000000, alpha: 0.3 });
     overlay.eventMode = 'static';
     this.addChild(overlay);
 
     // 2. Dialog Container
-    const dialogWidth = 400;
-    const dialogHeight = 200;
+    const dialogWidth = scale(400);
+    const dialogHeight = scale(200);
     const dialog = new PIXI.Container();
-    dialog.position.set((GAME_WIDTH - dialogWidth) / 2, (GAME_HEIGHT - dialogHeight) / 2);
+    dialog.position.set((canvasWidth - dialogWidth) / 2, (canvasHeight - dialogHeight) / 2);
     this.addChild(dialog);
 
     // Shadow
     const shadow = new PIXI.Graphics();
     shadow.rect(0, 0, dialogWidth, dialogHeight);
     shadow.fill({ color: 0x000000, alpha: 0.3 });
-    shadow.filters = [new PIXI.BlurFilter({ strength: 8, quality: 3 })];
-    shadow.position.set(0, 4);
+    shadow.filters = [new PIXI.BlurFilter({ strength: scale(8), quality: 3 })];
+    shadow.position.set(0, scale(4));
     dialog.addChild(shadow);
 
     // Dialog Body
@@ -54,38 +83,38 @@ export class ConfirmDialog extends PIXI.Container {
 
     // 3. Message Text
     const messageText = new PIXI.Text({
-      text: message,
+      text: this.message,
       style: {
         fontFamily: 'Arial',
-        fontSize: 20,
+        fontSize: scale(20),
         fill: '#555555',
         align: 'center',
         wordWrap: true,
-        wordWrapWidth: dialogWidth - 40
+        wordWrapWidth: dialogWidth - scale(40)
       }
     });
     messageText.anchor.set(0.5);
-    messageText.position.set(dialogWidth / 2, 70);
+    messageText.position.set(dialogWidth / 2, scale(70));
     dialog.addChild(messageText);
 
     // 4. Buttons
-    const btnWidth = showCancel ? 120 : 160;
-    const btnHeight = 44;
-    const btnY = 140;
+    const btnWidth = showCancel ? scale(120) : scale(160);
+    const btnHeight = scale(44);
+    const btnY = scale(140);
 
     if (showCancel) {
       // Cancel Button (Left)
       const cancelBtn = this.createButton(
         cancelText,
-        (dialogWidth / 2) - btnWidth - 10,
+        (dialogWidth / 2) - btnWidth - scale(10),
         btnY,
         btnWidth,
         btnHeight,
         '#555555',
-        0xDDDDDD // Light Gray
+        0xDDDDDD
       );
       cancelBtn.on('pointertap', () => {
-        onCancel();
+        this.onCancelCallback();
       });
       dialog.addChild(cancelBtn);
     }
@@ -93,17 +122,22 @@ export class ConfirmDialog extends PIXI.Container {
     // Confirm Button (Right or Center)
     const confirmBtn = this.createButton(
       confirmText,
-      showCancel ? (dialogWidth / 2) + 10 : (dialogWidth - btnWidth) / 2,
+      showCancel ? (dialogWidth / 2) + scale(10) : (dialogWidth - btnWidth) / 2,
       btnY,
       btnWidth,
       btnHeight,
       '#FFFFFF',
-      0x555555 // Dark Gray
+      0x555555
     );
     confirmBtn.on('pointertap', () => {
-      onConfirm();
+      this.onConfirmCallback();
     });
     dialog.addChild(confirmBtn);
+  }
+
+  destroy(options?: any): void {
+    window.removeEventListener('resize', this.handleResize);
+    super.destroy(options);
   }
 
   private createButton(
@@ -127,7 +161,7 @@ export class ConfirmDialog extends PIXI.Container {
       text: text,
       style: {
         fontFamily: 'Arial',
-        fontSize: 18,
+        fontSize: scale(18),
         fill: textColor,
         fontWeight: 'bold'
       }

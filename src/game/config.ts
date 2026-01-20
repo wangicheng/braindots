@@ -6,9 +6,86 @@
 // Physics scale factor (pixels to physics world units)
 export const SCALE = 60; // 60 pixels = 1 meter in physics world
 
-// Canvas dimensions
-export const GAME_WIDTH = 1280;
-export const GAME_HEIGHT = 720;
+// Canvas dimensions - Responsive System
+export const ASPECT_RATIO = 16 / 9;
+
+// Design reference dimensions (used for scaling calculations)
+export const DESIGN_WIDTH = 1280;
+export const DESIGN_HEIGHT = 720;
+
+// Current canvas dimensions (updated by Game.resize())
+let currentWidth = DESIGN_WIDTH;
+let currentHeight = DESIGN_HEIGHT;
+
+/**
+ * Get current canvas width
+ */
+export function getCanvasWidth(): number {
+  return currentWidth;
+}
+
+/**
+ * Get current canvas height
+ */
+export function getCanvasHeight(): number {
+  return currentHeight;
+}
+
+/**
+ * Update current canvas dimensions (called by Game.resize())
+ */
+export function setCanvasSize(width: number, height: number): void {
+  currentWidth = width;
+  currentHeight = height;
+}
+
+/**
+ * Calculate optimal canvas size for the given container while maintaining 16:9 aspect ratio
+ */
+export function calculateCanvasSize(containerWidth: number, containerHeight: number): { width: number; height: number } {
+  let width = containerWidth;
+  let height = containerWidth / ASPECT_RATIO;
+
+  if (height > containerHeight) {
+    height = containerHeight;
+    width = containerHeight * ASPECT_RATIO;
+  }
+
+  return { width: Math.floor(width), height: Math.floor(height) };
+}
+
+/**
+ * Get scale factor relative to design dimensions
+ */
+export function getScaleFactor(): number {
+  return currentWidth / DESIGN_WIDTH;
+}
+
+/**
+ * Scale a value from design space to current canvas space
+ */
+export function scale(designValue: number): number {
+  return designValue * getScaleFactor();
+}
+
+/**
+ * Get a percentage of current canvas width
+ */
+export function vw(percent: number): number {
+  return (percent / 100) * currentWidth;
+}
+
+/**
+ * Get a percentage of current canvas height
+ */
+export function vh(percent: number): number {
+  return (percent / 100) * currentHeight;
+}
+
+// Legacy exports for backward compatibility during transition
+// TODO: Remove these after all usages are updated
+export const GAME_WIDTH = DESIGN_WIDTH;
+export const GAME_HEIGHT = DESIGN_HEIGHT;
 
 // Physics world settings
 export const GRAVITY = -10; // Gravity pointing downward (in physics coordinates)

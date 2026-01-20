@@ -6,6 +6,7 @@
 import * as PIXI from 'pixi.js';
 import { distanceSampling } from '../utils/douglasPeucker';
 import type { Point } from '../utils/douglasPeucker';
+import { getScaleFactor } from '../config';
 import { drawLineWithCornerStyle } from '../utils/lineRenderer';
 import { type Pen, DEFAULT_PEN } from '../data/PenData';
 
@@ -85,7 +86,11 @@ export class DrawingManager {
     // Cancel any existing drawing first
     this.cancelDrawing();
 
-    const startPoint = { x: event.globalX, y: event.globalY };
+    const scaleFactor = getScaleFactor();
+    const startPoint = {
+      x: event.globalX / scaleFactor,
+      y: event.globalY / scaleFactor
+    };
 
     // Check if starting point is valid
     this.isValidStart = this.collisionProvider ? this.collisionProvider.isPointValid(startPoint) : true;
@@ -120,7 +125,11 @@ export class DrawingManager {
   private onPointerMove(event: PIXI.FederatedPointerEvent): void {
     if (!this.isDrawing || !this.currentGraphics) return;
 
-    const point = { x: event.globalX, y: event.globalY };
+    const scaleFactor = getScaleFactor();
+    const point = {
+      x: event.globalX / scaleFactor,
+      y: event.globalY / scaleFactor
+    };
 
     // Only add point if it's far enough from the last point
     const lastPoint = this.currentPoints[this.currentPoints.length - 1];
@@ -219,6 +228,7 @@ export class DrawingManager {
    */
   private redrawCurrentLine(cursorPoint?: Point): void {
     if (!this.currentGraphics || this.currentPoints.length < 1) return;
+    const scaleFactor = getScaleFactor();
 
     this.currentGraphics.clear();
 
@@ -228,7 +238,7 @@ export class DrawingManager {
         this.currentGraphics,
         this.currentPoints,
         this.currentPen.color,
-        this.currentPen.width,
+        this.currentPen.width * scaleFactor,
         null
       );
     }
@@ -244,16 +254,17 @@ export class DrawingManager {
 
       if (distance >= this.currentPen.minDistance) {
         // For preview, use simple stroke style
+        const scaleFactor = getScaleFactor();
         this.previewGraphics.setStrokeStyle({
-          width: this.currentPen.width,
+          width: this.currentPen.width * scaleFactor,
           color: this.currentPen.color,
           cap: 'round',
           join: 'round',
-          alpha: 0.4, // Semi-transparent for ghost segment
+          alpha: 0.4,
         });
 
-        this.previewGraphics.moveTo(lastPoint.x, lastPoint.y);
-        this.previewGraphics.lineTo(cursorPoint.x, cursorPoint.y);
+        this.previewGraphics.moveTo(lastPoint.x * scaleFactor, lastPoint.y * scaleFactor);
+        this.previewGraphics.lineTo(cursorPoint.x * scaleFactor, cursorPoint.y * scaleFactor);
         this.previewGraphics.stroke();
       }
     }

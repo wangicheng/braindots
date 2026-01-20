@@ -25,8 +25,6 @@ import { MockLevelService, CURRENT_USER_ID } from './services/MockLevelService';
 import type { LevelData } from './levels/LevelSchema';
 import type { Point } from './utils/douglasPeucker';
 import {
-  GAME_WIDTH,
-  GAME_HEIGHT,
   BACKGROUND_COLOR,
   GRID_SIZE,
   GRID_COLOR,
@@ -35,6 +33,12 @@ import {
   COLLISION_GROUP,
   SCALE,
   FIXED_TIMESTEP,
+  calculateCanvasSize,
+  setCanvasSize,
+  getCanvasWidth,
+  getCanvasHeight,
+  getScaleFactor,
+  scale,
 } from './config';
 import { EffectManager } from './effects/EffectManager';
 
@@ -117,10 +121,14 @@ export class Game {
     // Initialize Rapier.js WASM (must be done first)
     await this.physicsWorld.init();
 
-    // Initialize Pixi.js application
+    // Calculate initial canvas size based on window
+    const { width, height } = calculateCanvasSize(window.innerWidth, window.innerHeight);
+    setCanvasSize(width, height);
+
+    // Initialize Pixi.js application with dynamic size
     await this.app.init({
-      width: GAME_WIDTH,
-      height: GAME_HEIGHT,
+      width: width,
+      height: height,
       backgroundColor: BACKGROUND_COLOR,
       antialias: true,
       resolution: window.devicePixelRatio || 1,
@@ -141,7 +149,6 @@ export class Game {
       document.body.appendChild(this.app.canvas);
     }
 
-    // Setup game container
     // Setup containers
     this.app.stage.addChild(this.backgroundContainer);
     this.app.stage.addChild(this.gameContainer);
@@ -152,8 +159,7 @@ export class Game {
     this.createBackground();
 
     // Create interaction area (invisible rectangle covering the canvas)
-    this.interactionArea.rect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    this.interactionArea.fill({ color: 0xFFFFFF, alpha: 0 });
+    this.updateInteractionArea();
     this.interactionArea.zIndex = 0;
     this.gameContainer.addChild(this.interactionArea);
     this.gameContainer.sortableChildren = true;
@@ -164,9 +170,6 @@ export class Game {
       this.drawingManager.getContainer().zIndex = 100;
     }
 
-    // Create game objects
-    // await this.createGameObjects(); // Moved to startLevel via menu
-
     // Create UI
     this.setupCanvasUI();
 
@@ -174,8 +177,100 @@ export class Game {
     this.initMenu();
     this.showLevelSelection();
 
+    // Setup resize listener
+    window.addEventListener('resize', this.handleResize.bind(this));
+
     // Start game loop
     this.app.ticker.add(this.update.bind(this));
+  }
+
+  /**
+   * Handle window resize
+   */
+  private handleResize(): void {
+    const { width, height } = calculateCanvasSize(window.innerWidth, window.innerHeight);
+    setCanvasSize(width, height);
+
+    // Resize Pixi renderer
+    this.app.renderer.resize(width, height);
+
+    // Update background
+    this.backgroundContainer.removeChildren();
+    this.createBackground();
+
+    // Update interaction area
+    this.updateInteractionArea();
+
+    // Update UI layout
+    this.updateUILayout();
+
+    // Update level selection UI if visible
+    if (this.levelSelectionUI) {
+      this.levelSelectionUI.updateLayout();
+    }
+  }
+
+  /**
+   * Update interaction area to match current canvas size
+   */
+  private updateInteractionArea(): void {
+    this.interactionArea.clear();
+    this.interactionArea.rect(0, 0, getCanvasWidth(), getCanvasHeight());
+    this.interactionArea.fill({ color: 0xFFFFFF, alpha: 0 });
+  }
+
+  /**
+   * Update UI layout after resize
+   */
+  private updateUILayout(): void {
+    const btnY = scale(36);
+    const btnSize = scale(52);
+    const btnSpacing = scale(20);
+    const fontSize = scale(60);
+
+    // Update button positions and sizes
+    if (this.homeBtnContainer) {
+      this.homeBtnContainer.position.set(scale(20), btnY);
+      this.updateButtonSize(this.homeBtnContainer, btnSize, fontSize);
+    }
+
+    const restartX = getCanvasWidth() - scale(20) - btnSize;
+    if (this.restartBtnContainer) {
+      this.restartBtnContainer.position.set(restartX, btnY);
+      this.updateButtonSize(this.restartBtnContainer, btnSize, fontSize);
+    }
+
+    const penX = restartX - btnSpacing - btnSize;
+    if (this.penBtnContainer) {
+      this.penBtnContainer.position.set(penX, btnY);
+      this.updateButtonSize(this.penBtnContainer, btnSize, fontSize);
+    }
+
+    const publishX = penX - btnSpacing - btnSize;
+    if (this.publishBtnContainer) {
+      this.publishBtnContainer.position.set(publishX, btnY);
+      this.updateButtonSize(this.publishBtnContainer, btnSize, fontSize);
+    }
+  }
+
+  /**
+   * Update button size and font
+   */
+  private updateButtonSize(container: PIXI.Container, size: number, fontSize: number): void {
+    // Update hit area
+    const hitArea = container.children[0] as PIXI.Graphics;
+    if (hitArea) {
+      hitArea.clear();
+      hitArea.rect(0, 0, size, size);
+      hitArea.fill({ color: 0xFFFFFF, alpha: 0.001 });
+    }
+
+    // Update text position and size
+    const text = container.children[1] as PIXI.Text;
+    if (text) {
+      text.style.fontSize = fontSize;
+      text.position.set(size / 2, size / 2);
+    }
   }
 
 
@@ -304,11 +399,16 @@ export class Game {
     if (this.drawingManager) {
       this.drawingManager.setCollisionProvider({
         isPointValid: (point: Point) => {
+          // Unscale from visual space to design space for physics check
+          const scaleFactor = getScaleFactor();
+          const designX = point.x / scaleFactor;
+          const designY = point.y / scaleFactor;
+
           // Check Nets
           // Net check is now covered by Physics World intersection check below
 
           // Check Physics Objects (Balls, Obstacles, Falling Objects, Lines)
-          const physicsPos = this.physicsWorld.toPhysics(point.x, point.y);
+          const physicsPos = this.physicsWorld.toPhysics(designX, designY);
           let isHit = false;
           this.physicsWorld.getWorld().intersectionsWithPoint(
             physicsPos,
@@ -468,6 +568,17 @@ export class Game {
     if (!this.hasStarted) {
       this.hasStarted = true;
       this.gameState = GameState.PLAYING;
+      // Update game objects
+      const scaleFactor = getScaleFactor();
+      this.balls.forEach(ball => ball.update(scaleFactor));
+      this.drawnLines.forEach(line => line.update(scaleFactor));
+      this.fallingObjects.forEach(obj => obj.update(scaleFactor));
+      this.seesaws.forEach(seesaw => seesaw.update(scaleFactor));
+      this.conveyors.forEach(conveyor => conveyor.update(scaleFactor));
+      this.buttons.forEach(btn => btn.update(scaleFactor));
+      this.nets.forEach(net => net.update(scaleFactor));
+      this.iceBlocks.forEach(ice => ice.update(scaleFactor));
+      this.lasers.forEach(laser => laser.update(scaleFactor));
       this.balls.forEach(ball => ball.activate());
       this.fallingObjects.forEach(obj => obj.activate());
 
@@ -489,6 +600,7 @@ export class Game {
     const line = new DrawnLine(this.physicsWorld, points, this.currentPen);
     this.drawnLines.push(line);
     this.gameContainer.addChild(line.graphics);
+    line.update(); // Initial position update with scaling
 
     // Register all colliders for conveyor detection
     for (const collider of line.colliders) {
@@ -506,32 +618,32 @@ export class Game {
    * Create UI overlay on Canvas
    */
   private setupCanvasUI(): void {
-    const btnY = 36;
+    const btnY = scale(36);
+    const btnSize = scale(52);
+    const btnSpacing = scale(20);
 
     // Home Button (Top Left)
-    this.homeBtnContainer = this.createCanvasButton('\uF284', 20, btnY, () => {
+    this.homeBtnContainer = this.createCanvasButton('\uF284', scale(20), btnY, () => {
       this.showLevelSelection();
     });
     this.uiLayer.addChild(this.homeBtnContainer);
 
     // Restart Button (Top Right)
-    // Width approx 70px.
-    const restartX = GAME_WIDTH - 20 - 70;
+    const restartX = getCanvasWidth() - scale(20) - btnSize;
     this.restartBtnContainer = this.createCanvasButton('\uF116', restartX, btnY, () => {
       this.restartLevel();
     });
     this.uiLayer.addChild(this.restartBtnContainer);
 
     // Pen Button (Left of Restart)
-    const penX = restartX - 20 - 70;
+    const penX = restartX - btnSpacing - btnSize;
     this.penBtnContainer = this.createCanvasButton('\uF604', penX, btnY, () => {
       this.showPenSelection();
     });
     this.uiLayer.addChild(this.penBtnContainer);
 
     // Publish Button (Left of Pen) - Cloud Arrow Up
-    // \uF297
-    const publishX = penX - 20 - 70;
+    const publishX = penX - btnSpacing - btnSize;
     this.publishBtnContainer = this.createCanvasButton('\uF297', publishX, btnY, async () => {
       const currentLevel = this.levelManager.getCurrentLevel();
       if (!currentLevel) return;
@@ -560,7 +672,6 @@ export class Game {
           if (this.publishBtnContainer) {
             this.publishBtnContainer.visible = false;
           }
-          // Ideally reload level data to reflect status, but visible update is enough for UI
           currentLevel.isPublished = true;
         },
         () => this.closeConfirmDialog()
@@ -574,7 +685,7 @@ export class Game {
    * Helper to create a circular icon button
    */
   private createCanvasButton(iconChar: string, x: number, y: number, onClick: () => void): PIXI.Container {
-    const size = 52;
+    const size = scale(52);
     const container = new PIXI.Container();
     container.position.set(x, y);
 
@@ -589,11 +700,11 @@ export class Game {
       text: iconChar,
       style: {
         fontFamily: 'bootstrap-icons',
-        fontSize: 60,
-        fill: '#555555', // Changed to dark grey for visibility on light background
-        stroke: { color: '#555555', width: 0.5 }, // Same color as fill to simulate boldness
+        fontSize: scale(60),
+        fill: '#555555',
+        stroke: { color: '#555555', width: 0.5 },
         align: 'center',
-        padding: 10 // Prevent clipping of icon glyphs
+        padding: scale(10)
       }
     });
     text.anchor.set(0.5);
@@ -776,11 +887,11 @@ export class Game {
   }
 
   private checkBoundaries(): void {
-    const margin = BALL_RADIUS * 2;
+    const margin = scale(BALL_RADIUS * 2);
     const bounds = {
       minX: -margin,
-      maxX: GAME_WIDTH + margin,
-      maxY: GAME_HEIGHT + margin
+      maxX: getCanvasWidth() + margin,
+      maxY: getCanvasHeight() + margin
     };
 
     for (const ball of this.balls) {
@@ -915,8 +1026,8 @@ export class Game {
     console.log('Game Won!');
     this.gameState = GameState.WON;
 
-    const clampedX = Math.max(0, Math.min(x, GAME_WIDTH));
-    const clampedY = Math.max(0, Math.min(y, GAME_HEIGHT));
+    const clampedX = Math.max(0, Math.min(x, getCanvasWidth()));
+    const clampedY = Math.max(0, Math.min(y, getCanvasHeight()));
 
     this.effectManager.createRingExplosion(clampedX, clampedY, 0xFFD700, 1);
     this.effectManager.createParticleExplosion(clampedX, clampedY, 0xFFD700, 'star');
@@ -947,8 +1058,8 @@ export class Game {
 
 
     // Calculate clamped position for effects (so they are visible if ball is out of bounds)
-    const clampedX = Math.max(0, Math.min(pixelPos.x, GAME_WIDTH));
-    const clampedY = Math.max(0, Math.min(pixelPos.y, GAME_HEIGHT));
+    const clampedX = Math.max(0, Math.min(pixelPos.x, getCanvasWidth()));
+    const clampedY = Math.max(0, Math.min(pixelPos.y, getCanvasHeight()));
 
     // Trigger effects
     this.effectManager.createRingExplosion(clampedX, clampedY, color, 1);
@@ -1039,59 +1150,62 @@ export class Game {
       }
     }
 
-    // Check boundaries check was moved to fixedUpdate
+    const scaleFactor = getScaleFactor();
 
-    // Update lasers (flip animation, visual only)
+    // Update ALL game objects for responsive rendering and animations
+
+    // Lasers (flip animation)
     for (const laser of this.lasers) {
-      laser.update(dt);
+      laser.update(scaleFactor, dt);
     }
 
-    // Update buttons (sink animation)
+    // Buttons (sink animation)
     for (const button of this.buttons) {
-      button.update(dt);
+      button.update(scaleFactor, dt);
     }
 
-    // Stop updates if game is over
-    // Stop updates if game is over - REMOVED to allow final frame render and animations
-    // if (this.gameState === GameState.WON || this.gameState === GameState.LOST) return;
-
-    // Update ball graphics from physics
+    // Balls from physics
     for (const ball of this.balls) {
-      ball.update();
+      ball.update(scaleFactor);
     }
 
-    // Update falling objects graphics from physics
+    // Falling objects from physics
     for (const obj of this.fallingObjects) {
-      obj.update();
+      obj.update(scaleFactor);
     }
 
-
-    // Update drawn lines graphics from physics
+    // Drawn lines from physics
     for (const line of this.drawnLines) {
-      line.update();
+      line.update(scaleFactor);
     }
 
-    // Update ice blocks (handle melting and removal)
+    // Ice blocks (melting and removal)
     for (let i = this.iceBlocks.length - 1; i >= 0; i--) {
       const iceBlock = this.iceBlocks[i];
-      if (iceBlock.update(dt)) {
-        // Ice block has fully melted
+      if (iceBlock.update(scaleFactor, dt)) {
         this.iceBlockColliderHandles.delete(iceBlock.getColliderHandle());
         iceBlock.destroy(this.physicsWorld);
         this.iceBlocks.splice(i, 1);
       }
     }
 
-    // Update seesaws graphics from physics
+    // Seesaws from physics
     for (const seesaw of this.seesaws) {
-      seesaw.update();
+      seesaw.update(scaleFactor);
     }
 
-    // Update conveyors (gear animation)
+    // Conveyor Belts (gear animation)
     for (const conveyor of this.conveyors) {
-      conveyor.update(dt);
+      conveyor.update(scaleFactor, dt);
     }
 
+    // Obstacles and Nets (responsive positioning)
+    for (const obstacle of this.obstacles) {
+      obstacle.update(scaleFactor);
+    }
+    for (const net of this.nets) {
+      net.update(scaleFactor);
+    }
   }
 
   /**
@@ -1099,23 +1213,25 @@ export class Game {
    */
   private createBackground(): void {
     const gridGraphics = new PIXI.Graphics();
+    const width = getCanvasWidth();
+    const height = getCanvasHeight();
+    const gridSize = scale(GRID_SIZE);
 
-    const startX = (GAME_WIDTH / 2) % GRID_SIZE;
-    const startY = (GAME_HEIGHT / 2) % GRID_SIZE;
+    const startX = (width / 2) % gridSize;
+    const startY = (height / 2) % gridSize;
 
-    for (let x = startX; x <= GAME_WIDTH; x += GRID_SIZE) {
+    for (let x = startX; x <= width; x += gridSize) {
       gridGraphics.moveTo(x, 0);
-      gridGraphics.lineTo(x, GAME_HEIGHT);
+      gridGraphics.lineTo(x, height);
     }
 
-    for (let y = startY; y <= GAME_HEIGHT; y += GRID_SIZE) {
+    for (let y = startY; y <= height; y += gridSize) {
       gridGraphics.moveTo(0, y);
-      gridGraphics.lineTo(GAME_WIDTH, y);
+      gridGraphics.lineTo(width, y);
     }
 
     gridGraphics.stroke({ width: 1, color: GRID_COLOR });
 
-    // Check if backgroundContainer is available (it should be)
     if (this.backgroundContainer) {
       this.backgroundContainer.addChild(gridGraphics);
     } else {

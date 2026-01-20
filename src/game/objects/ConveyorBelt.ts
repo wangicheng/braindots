@@ -87,11 +87,19 @@ export class ConveyorBelt {
   }
 
   /**
-   * Update gear rotation animation
+   * Update gear rotation animation and handle responsive scaling
+   * @param scaleFactor Current canvas scale factor
    * @param deltaTime Time since last update in seconds
    */
-  update(deltaTime: number): void {
-    // 1. No need to sync graphics position/rotation as it is Fixed
+  update(scaleFactor: number = 1, deltaTime: number = 0): void {
+    // 1. Sync graphics position/rotation for responsiveness (even if physics is fixed)
+    const pos = this.body.translation();
+    const angle = this.body.rotation();
+
+    this.graphics.position.x = pos.x * SCALE * scaleFactor;
+    this.graphics.position.y = -pos.y * SCALE * scaleFactor;
+    this.graphics.rotation = -angle;
+    this.graphics.scale.set(scaleFactor);
 
     // 2. Rotate gears
     const direction = this.acceleration >= 0 ? 1 : -1;

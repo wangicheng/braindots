@@ -123,17 +123,21 @@ export class Seesaw {
   /**
    * Update graphics from physics
    */
-  update(): void {
+  update(scaleFactor: number = 1): void {
     const pos = this.plankBody.translation();
     const angle = this.plankBody.rotation();
 
-    // Convert physics coordinates to pixel coordinates
-    // We only update the plank graphics
-    this.plankGraphics.position.x = pos.x * SCALE;
-    this.plankGraphics.position.y = -pos.y * SCALE;
+    // Convert physics coordinates to pixel coordinates and apply responsive scaling
+    this.plankGraphics.position.x = pos.x * SCALE * scaleFactor;
+    this.plankGraphics.position.y = -pos.y * SCALE * scaleFactor;
     this.plankGraphics.rotation = -angle;
+    this.plankGraphics.scale.set(scaleFactor);
 
-    // Pivot graphics remain fixed at the anchor position (set in constructor)
+    // Pivot graphics also need to be scaled and repoistioned even if seemingly fixed
+    const anchorPos = this.anchorBody.translation();
+    this.pivotGraphics.position.x = anchorPos.x * SCALE * scaleFactor;
+    this.pivotGraphics.position.y = -anchorPos.y * SCALE * scaleFactor;
+    this.pivotGraphics.scale.set(scaleFactor);
   }
 
   destroy(physicsWorld: PhysicsWorld): void {
