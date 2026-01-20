@@ -234,9 +234,15 @@ export class DrawingManager {
 
     // Draw main committed line using custom corner styles
     if (this.currentPoints.length >= 1 && this.isValidStart) {
+      // Map points to screen coordinates for rendering
+      const screenPoints = this.currentPoints.map(p => ({
+        x: p.x * scaleFactor,
+        y: p.y * scaleFactor
+      }));
+
       drawLineWithCornerStyle(
         this.currentGraphics,
-        this.currentPoints,
+        screenPoints,
         this.currentPen.color,
         this.currentPen.width * scaleFactor,
         null

@@ -793,7 +793,8 @@ export class Game {
           const midY = (pos1.y + pos2.y) / 2;
 
           const pixelPos = this.physicsWorld.toPixels(midX, midY);
-          this.handleWin(pixelPos.x, pixelPos.y);
+          const scaleFactor = getScaleFactor();
+          this.handleWin(pixelPos.x * scaleFactor, pixelPos.y * scaleFactor);
         }
 
         // Check for ice block collisions
@@ -894,11 +895,13 @@ export class Game {
       maxY: getCanvasHeight() + margin
     };
 
+    const scaleFactor = getScaleFactor();
     for (const ball of this.balls) {
       const pos = ball.body.translation();
       const pixelPos = this.physicsWorld.toPixels(pos.x, pos.y);
-      const x = pixelPos.x;
-      const y = pixelPos.y;
+      // Convert to screen coordinates for boundary check
+      const x = pixelPos.x * scaleFactor;
+      const y = pixelPos.y * scaleFactor;
 
       if (x < bounds.minX || x > bounds.maxX || y > bounds.maxY) {
         this.handleLoss(ball);
@@ -1045,7 +1048,12 @@ export class Game {
 
     const pos = ball.body.translation();
     const pixelPos = this.physicsWorld.toPixels(pos.x, pos.y);
+    const scaleFactor = getScaleFactor();
     const color = BALL_COLORS[ball.type];
+
+    // Scale position to screen coordinates
+    const screenX = pixelPos.x * scaleFactor;
+    const screenY = pixelPos.y * scaleFactor;
 
     // Remove ball
     ball.destroy(this.physicsWorld);
@@ -1058,8 +1066,8 @@ export class Game {
 
 
     // Calculate clamped position for effects (so they are visible if ball is out of bounds)
-    const clampedX = Math.max(0, Math.min(pixelPos.x, getCanvasWidth()));
-    const clampedY = Math.max(0, Math.min(pixelPos.y, getCanvasHeight()));
+    const clampedX = Math.max(0, Math.min(screenX, getCanvasWidth()));
+    const clampedY = Math.max(0, Math.min(screenY, getCanvasHeight()));
 
     // Trigger effects
     this.effectManager.createRingExplosion(clampedX, clampedY, color, 1);

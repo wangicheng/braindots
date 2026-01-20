@@ -79,8 +79,18 @@ export class Net {
 
   static createVisual(config: NetConfig): PIXI.Container {
     const graphics = new PIXI.Container();
-    graphics.x = config.x;
-    graphics.y = config.y;
+
+    // Calculate center position to match physics body
+    const rad = (config.angle || 0) * (Math.PI / 180);
+    const w2 = config.width / 2;
+    const h2 = config.height / 2;
+
+    // Rotate center offset vector (w/2, h/2)
+    const rotatedCx = w2 * Math.cos(rad) - h2 * Math.sin(rad);
+    const rotatedCy = w2 * Math.sin(rad) + h2 * Math.cos(rad);
+
+    graphics.x = config.x + rotatedCx;
+    graphics.y = config.y + rotatedCy;
     // We will set pos/rotation in update, but initial setup helps
     if (config.angle) {
       graphics.rotation = config.angle * (Math.PI / 180);
