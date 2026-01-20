@@ -28,6 +28,7 @@ export class LevelSelectionUI extends PIXI.Container {
   private dragStartX: number = 0;
   private dragStartPageX: number = 0;
   private dragDistance: number = 0; // Cumulative or max displacement to distinguish tap from swipe
+  private scrollTweenId: number = 0;
 
   private penSelectionUI: PenSelectionUI | null = null;
   private userProfileCard: UserProfileCard | null = null;
@@ -497,8 +498,11 @@ export class LevelSelectionUI extends PIXI.Container {
     const distance = targetX - startX;
     const duration = 0.3; // seconds
     const startTime = Date.now();
+    const myTweenId = ++this.scrollTweenId;
 
     const animate = () => {
+      if (this.scrollTweenId !== myTweenId) return;
+
       const now = Date.now();
       const progress = Math.min((now - startTime) / (duration * 1000), 1);
       const ease = 1 - Math.pow(1 - progress, 3); // Cubic out
@@ -577,7 +581,14 @@ export class LevelSelectionUI extends PIXI.Container {
   // --- Logic for Sorting and Filtering ---
 
   private setSortMode(mode: 'latest' | 'popular'): void {
-    if (this.sortMode === mode) return;
+    if (this.sortMode === mode) {
+      // 如果已經在該模式，但不在第一頁，則回到第一頁
+      if (this.currentPage !== 0) {
+        this.currentPage = 0;
+        this.scrollToPage(0);
+      }
+      return;
+    }
     this.sortMode = mode;
     this.updateSortButtons();
     // Maintain current filter
@@ -686,14 +697,13 @@ export class LevelSelectionUI extends PIXI.Container {
     this.visibleLevels = list;
 
     // 3. Reset Pagination
+    this.scrollTweenId++; // 取消任何進行中的動畫
     this.currentPage = 0;
     this.totalPages = Math.ceil(this.visibleLevels.length / this.ITEMS_PER_PAGE);
     if (this.totalPages === 0) this.totalPages = 1; // Show at least one empty page if no results
 
     // 4. Re-render
-    // Ensure grid is reset position
     this.gridContainer.x = 0;
-    this.currentPage = 0;
     this.setupGrid();
   }
 }
