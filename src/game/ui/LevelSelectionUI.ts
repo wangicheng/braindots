@@ -132,7 +132,7 @@ export class LevelSelectionUI extends PIXI.Container {
     this.headerContainer.addChild(this.filterFilterTagContainer);
     this.updateFilterTag();
 
-    this.updateSortButtons();
+
 
     // 3. Action Area (Right)
     const btnY = scale(36);
@@ -156,6 +156,8 @@ export class LevelSelectionUI extends PIXI.Container {
     this.createLevelBtn = this.createFloatingActionButton();
     this.createLevelBtn.visible = false;
     this.addChild(this.createLevelBtn);
+
+    this.updateSortButtons();
   }
 
   /**
@@ -345,8 +347,8 @@ export class LevelSelectionUI extends PIXI.Container {
     const shadow = new PIXI.Graphics();
     shadow.rect(0, 0, width, height);
     shadow.fill({ color: 0x000000, alpha: 0.3 });
-    shadow.filters = [new PIXI.BlurFilter({ strength: 8, quality: 3 })];
-    shadow.position.set(0, 4);
+    shadow.filters = [new PIXI.BlurFilter({ strength: scale(8), quality: 3 })];
+    shadow.position.set(0, scale(4));
     container.addChild(shadow);
 
     // 2. Card Body
@@ -356,12 +358,6 @@ export class LevelSelectionUI extends PIXI.Container {
     container.addChild(bg);
 
     // 3. Viewport (Masked Area)
-    // viewWidth and viewHeight removed as unused
-    // Requirement says: "Index Placeholder: Top Left", "Status: Top Right", "Content Viewport: Center". 
-    // Let's make the thumbnail fill the whole card but put UI on top, 
-    // OR have a dedicated area. "internal layout... Center - Content Viewport... design allows thumbnail to fill card width".
-    // I will put thumbnail filling the card (with rounded corners) and put text on top.
-
     // Thumbnail Layer
     const thumbnail = this.createLevelThumbnail(levelData, width, height);
 
@@ -370,26 +366,24 @@ export class LevelSelectionUI extends PIXI.Container {
     mask.rect(0, 0, width, height);
     mask.fill(0xFFFFFF);
     thumbnail.mask = mask;
-    container.addChild(mask); // Mask needs to be in display list? In v7/v8 sometimes yes/no. Usually no need if assigned to .mask.
-    // Wait, pixi mask property. If using Graphics as mask, it should be in the parent usually or just exist.
-    // Safest is to add it and set renderable=false or just assign. 
+    container.addChild(mask);
     container.addChild(thumbnail);
 
     // Designer Avatar (Bottom Right)
     // Only show avatar if NOT viewing "My Levels" (filtering by current user)
     if (this.filterAuthorId !== CURRENT_USER_ID) {
       // Mocking a user avatar with a colored circle
-      const avatarRadius = 25;
+      const avatarRadius = scale(25);
       const avatar = new PIXI.Graphics();
       const colors = [0xFF6B6B, 0x4ECDC4, 0x45B7D1, 0xFFBE76, 0xFF7979, 0xBADC58];
       const color = colors[index % colors.length];
 
       avatar.circle(0, 0, avatarRadius);
       avatar.fill(color);
-      avatar.stroke({ width: 3, color: 0xFFFFFF });
+      avatar.stroke({ width: scale(3), color: 0xFFFFFF });
 
       // Position to slightly protrude from the corner (center closer to the corner)
-      avatar.position.set(width - 4, height - 4);
+      avatar.position.set(width - scale(4), height - scale(4));
 
       // Interaction for avatar
       avatar.eventMode = 'static';
@@ -432,24 +426,28 @@ export class LevelSelectionUI extends PIXI.Container {
         textColor = '#888888'; // Gray text
       }
 
-      tagBg.roundRect(0, 0, 80, 24, 12);
+      const tagW = scale(80);
+      const tagH = scale(24);
+      const tagRadius = scale(12);
+
+      tagBg.roundRect(0, 0, tagW, tagH, tagRadius);
       tagBg.fill(labelColor);
 
       const tagText = new PIXI.Text({
         text: labelText,
         style: {
           fontFamily: 'Arial',
-          fontSize: 12,
+          fontSize: scale(12),
           fill: textColor,
           fontWeight: 'bold'
         }
       });
       tagText.anchor.set(0.5);
-      tagText.position.set(40, 12); // Center of bg
+      tagText.position.set(tagW / 2, tagH / 2); // Center of bg
 
       tagContainer.addChild(tagBg);
       tagContainer.addChild(tagText);
-      tagContainer.position.set(10, 10);
+      tagContainer.position.set(scale(10), scale(10));
 
       container.addChild(tagContainer);
     } else {
@@ -463,20 +461,22 @@ export class LevelSelectionUI extends PIXI.Container {
         text: likesCount.toString(),
         style: {
           fontFamily: 'Arial',
-          fontSize: 12,
+          fontSize: scale(12),
           fill: '#FFFFFF',
           fontWeight: 'bold'
         }
       });
 
-      const padding = 10;
-      const iconSize = 14;
-      const gap = 4;
+      const padding = scale(10);
+      const iconSize = scale(14);
+      const gap = scale(4);
       const totalWidth = padding + iconSize + gap + numText.width + padding;
+      const pillHeight = scale(24);
+      const pillRadius = scale(12);
 
       // Background pill (semitransparent black)
       const bg = new PIXI.Graphics();
-      bg.roundRect(0, 0, totalWidth, 24, 12);
+      bg.roundRect(0, 0, totalWidth, pillHeight, pillRadius);
       bg.fill({ color: 0x000000, alpha: 0.4 });
       likesContainer.addChild(bg);
 
@@ -485,30 +485,25 @@ export class LevelSelectionUI extends PIXI.Container {
         text: '\uF406', // Heart Fill
         style: {
           fontFamily: 'bootstrap-icons',
-          fontSize: 16,
+          fontSize: scale(16),
           fill: '#FFFFFF',
         }
       });
       heartText.anchor.set(0.5);
-      heartText.position.set(padding + iconSize / 2, 12);
+      heartText.position.set(padding + iconSize / 2, pillHeight / 2);
       likesContainer.addChild(heartText);
 
       // Likes Number
       numText.anchor.set(0, 0.5); // Left align
-      numText.position.set(padding + iconSize + gap, 12);
+      numText.position.set(padding + iconSize + gap, pillHeight / 2);
       likesContainer.addChild(numText);
 
-      likesContainer.position.set(10, 10);
+      likesContainer.position.set(scale(10), scale(10));
       container.addChild(likesContainer);
     }
 
     // 5. Status (Top Right)
-    // Placeholder circle
-    // const statusCircle = new PIXI.Graphics();
-    // statusCircle.circle(0, 0, 10);
-    // statusCircle.fill(0xEEEEEE);
-    // statusCircle.position.set(width - 20, 20);
-    // container.addChild(statusCircle);
+    // Placeholder circle removed as in original
 
     // 6. Interaction
     container.eventMode = 'static';
@@ -883,6 +878,14 @@ export class LevelSelectionUI extends PIXI.Container {
   public updateLayout(): void {
     // 1. Clear Containers
     this.headerContainer.removeChildren();
+
+    // Remove legacy FAB to prevent ghosting
+    if (this.createLevelBtn) {
+      this.removeChild(this.createLevelBtn);
+      this.createLevelBtn.destroy({ children: true });
+      this.createLevelBtn = undefined;
+    }
+
     if (this.backgroundHitArea) {
       this.removeChild(this.backgroundHitArea);
       this.backgroundHitArea.destroy();
