@@ -2360,6 +2360,11 @@ export class Game {
       list.push(newObj);
       this.markAsEdited();
       this.setupEditorObject(visual, newObj, objTypeTag, true); // Auto-select new objects
+
+      // If created via drag, immediately start dragging
+      if (initialEventData && this.transformGizmo) {
+        this.transformGizmo.startMoveFromExternal(initialEventData);
+      }
     }
 
   }
