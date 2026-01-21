@@ -19,7 +19,7 @@ export class IceBlock {
   public body: RAPIER.RigidBody;
   public collider: RAPIER.Collider;
 
-  private meltTime: number; // Duration in seconds (1, 2, or 3)
+  private meltTime: number; // Duration in seconds
   private isMelting: boolean = false;
   private meltProgress: number = 0; // 0 to 1
 

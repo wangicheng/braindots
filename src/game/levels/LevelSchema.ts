@@ -53,7 +53,7 @@ export interface IceBlockConfig {
   y: number;
   width: number;
   height: number;
-  meltTime?: 1 | 2 | 3; // Default: 1 second
+  meltTime?: number; // Default: 1 second
   angle?: number; // Degrees
 }
 
