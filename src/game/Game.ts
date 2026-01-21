@@ -95,6 +95,7 @@ export class Game {
   private publishBtnContainer: PIXI.Container | null = null;
   private editorUI: EditorUI | null = null;
   private editingLevel: LevelData | null = null;
+  private editorHasChanged: boolean = false;
   private editorObjects: { container: PIXI.Container, data: any, type: string }[] = [];
   private selectedObject: { container: PIXI.Container, data: any, type: string } | null = null;
 
@@ -671,17 +672,23 @@ export class Game {
         'Publish this level?',
         async () => {
           this.closeConfirmDialog();
+          // Auto-save current design first, especially if they just passed
+          await this.saveLevel();
           await MockLevelService.getInstance().publishLevel(currentLevel.id);
+          currentLevel.isPublished = true;
+
           this.showConfirmDialog(
             'Published!',
-            () => this.closeConfirmDialog(),
-            () => this.closeConfirmDialog(),
+            () => {
+              this.closeConfirmDialog();
+              this.showLevelSelection();
+            },
+            () => {
+              this.closeConfirmDialog();
+              this.showLevelSelection();
+            },
             { showCancel: false, confirmText: 'OK' }
           );
-          if (this.publishBtnContainer) {
-            this.publishBtnContainer.visible = false;
-          }
-          currentLevel.isPublished = true;
         },
         () => this.closeConfirmDialog()
       );
@@ -1041,8 +1048,17 @@ export class Game {
     const clampedX = Math.max(0, Math.min(x, getCanvasWidth()));
     const clampedY = Math.max(0, Math.min(y, getCanvasHeight()));
 
+    // Trigger effects immediately for visual responsiveness
     this.effectManager.createRingExplosion(clampedX, clampedY, 0xFFD700, 1);
     this.effectManager.createParticleExplosion(clampedX, clampedY, 0xFFD700, 'star');
+
+    // Update state locally if it's an author test play and they passed for first time
+    const currentLevel = this.levelManager.getCurrentLevel();
+    if (currentLevel && currentLevel.authorId === CURRENT_USER_ID && !currentLevel.authorPassed) {
+      currentLevel.authorPassed = true;
+      this.editorHasChanged = true; // Mark as unsaved so they prompt on exit/save
+      console.log('Author passed the level locally! Status updated to Draft (unsaved).');
+    }
 
     this.autoRestartTimeout = setTimeout(() => {
       this.restartLevel();
@@ -1288,6 +1304,7 @@ export class Game {
     this.gameState = GameState.MENU;
     // Clear editing session
     this.editingLevel = null;
+    this.editorHasChanged = false;
     if (this.editorUI) {
       this.editorUI.visible = false;
       this.editorUI.destroy(); // Destroy it to reset state? Or keep?
@@ -1582,10 +1599,13 @@ export class Game {
     // this.gameState = GameState.EDIT;
   }
 
-  private startEditor(levelData: LevelData): void {
+  private startEditor(levelData: LevelData, isNewSession: boolean = true): void {
     console.log('Starting Editor for:', levelData.id);
     this.gameState = GameState.EDIT;
     this.editingLevel = levelData;
+    if (isNewSession) {
+      this.editorHasChanged = false;
+    }
 
     // Clear everything
     this.clearLevel(); // This clears physics bodies and gameContainer children
@@ -1651,7 +1671,7 @@ export class Game {
   private async stopTestPlay() {
     // Switch back to Edit Mode
     if (this.editingLevel) {
-      this.startEditor(this.editingLevel);
+      this.startEditor(this.editingLevel, false);
     }
   }
 
@@ -1769,6 +1789,13 @@ export class Game {
         const designX = container.x / scaleFactor;
         const designY = container.y / scaleFactor;
 
+        // Detect if actually moved
+        const dx = container.x - initialObjX;
+        const dy = container.y - initialObjY;
+        if (Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001) {
+          this.markAsEdited();
+        }
+
         onUpdate(designX, designY);
 
         container.alpha = 1;
@@ -1839,6 +1866,13 @@ export class Game {
     // Initial Drag (from UI spawn)
     if (initialEventData) {
       startDrag(initialEventData);
+    }
+  }
+
+  private markAsEdited() {
+    this.editorHasChanged = true;
+    if (this.editingLevel) {
+      this.editingLevel.authorPassed = false;
     }
   }
 
@@ -2069,6 +2103,7 @@ export class Game {
 
     if (visual && list) {
       list.push(newData);
+      this.markAsEdited();
       this.setupEditorObject(visual, newData, type);
 
       // Select new object
@@ -2086,6 +2121,7 @@ export class Game {
 
     // Remove from level data
     // Remove from level data
+    this.markAsEdited();
     if (type === 'obstacle') {
       const index = this.editingLevel.obstacles.indexOf(data);
       if (index > -1) this.editingLevel.obstacles.splice(index, 1);
@@ -2128,11 +2164,16 @@ export class Game {
   private async saveLevel() {
     if (this.editingLevel) {
       await MockLevelService.getInstance().uploadLevel(this.editingLevel);
-      console.log("Level Saved");
+      this.editorHasChanged = false;
+      console.log("Level Saved.");
     }
   }
 
   private handleEditorClose() {
+    if (!this.editorHasChanged) {
+      this.showLevelSelection();
+      return;
+    }
     this.showConfirmDialog(
       'Do you want to save your progress?',
       async () => {
@@ -2263,6 +2304,7 @@ export class Game {
 
     if (visual && newObj && list) {
       list.push(newObj);
+      this.markAsEdited();
       this.setupEditorObject(visual, newObj, objTypeTag, initialEventData);
 
       // Auto select
