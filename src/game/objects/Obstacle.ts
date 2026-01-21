@@ -63,12 +63,11 @@ export class Obstacle {
       }
 
       case 'triangle': {
-        const w = width;
-        const h = height;
-        // Vertices relative to (0,0)
-        const v1 = { x: 0, y: -h / 2 };
-        const v2 = { x: w / 2, y: h / 2 };
-        const v3 = { x: -w / 2, y: h / 2 };
+        if (!points || points.length !== 3) {
+          console.error('Triangle obstacle requires 3 points');
+          return;
+        }
+        const [v1, v2, v3] = points;
 
         // Create convex hull from vertices (Rapier uses Float32Array)
         const vertices = new Float32Array([
@@ -251,12 +250,10 @@ export class Obstacle {
       }
 
       case 'triangle': {
-        const w = width;
-        const h = height;
-        // Vertices relative to (0,0)
-        const v1 = { x: 0, y: -h / 2 };
-        const v2 = { x: w / 2, y: h / 2 };
-        const v3 = { x: -w / 2, y: h / 2 };
+        if (!points || points.length !== 3) {
+          return graphics;
+        }
+        const [v1, v2, v3] = points;
 
         graphics.poly([v1.x, v1.y, v2.x, v2.y, v3.x, v3.y]);
         graphics.fill({ color: OBSTACLE_COLOR });

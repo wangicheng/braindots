@@ -1931,9 +1931,10 @@ export class Game {
             if (subType === 'circle') {
               g.circle(0, 0, d.radius || d.width / 2);
             } else if (subType === 'triangle') {
-              const w = d.width;
-              const h = d.height;
-              g.poly([0, -h / 2, w / 2, h / 2, -w / 2, h / 2]);
+              if (d.points && d.points.length === 3) {
+                const [v1, v2, v3] = d.points;
+                g.poly([v1.x, v1.y, v2.x, v2.y, v3.x, v3.y]);
+              }
             } else if (subType === 'c_shape') {
               if (d.points && d.points.length === 3 && d.thickness) {
                 const p1 = d.points[0], p2 = d.points[1], p3 = d.points[2];
@@ -2227,7 +2228,13 @@ export class Game {
       if (subType === 'circle') {
         newObj = { type: 'circle', radius: 50, x: designX, y: designY, angle: 0 };
       } else if (subType === 'triangle') {
-        newObj = { type: 'triangle', width: 100, height: 100, x: designX, y: designY, angle: 0 };
+        newObj = {
+          type: 'triangle',
+          x: designX,
+          y: designY,
+          angle: 0,
+          points: [{ x: 0, y: -50 }, { x: 50, y: 50 }, { x: -50, y: 50 }]
+        };
       } else if (subType === 'c_shape') {
         newObj = {
           type: 'c_shape',
@@ -2252,7 +2259,13 @@ export class Game {
       if (subType === 'circle') {
         newObj = { type: 'circle', radius: 50, x: designX, y: designY, angle: 0 };
       } else if (subType === 'triangle') {
-        newObj = { type: 'triangle', width: 100, height: 100, x: designX, y: designY, angle: 0 };
+        newObj = {
+          type: 'triangle',
+          x: designX,
+          y: designY,
+          angle: 0,
+          points: [{ x: 0, y: -50 }, { x: 50, y: 50 }, { x: -50, y: 50 }]
+        };
       } else {
         // Default to rectangle
         newObj = { type: 'rectangle', width: 100, height: 100, x: designX, y: designY, angle: 0 };

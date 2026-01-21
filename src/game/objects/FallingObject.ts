@@ -31,7 +31,8 @@ export class FallingObject {
       width = 0,
       height = 0,
       angle = 0,
-      radius
+      radius,
+      points
     } = config;
 
     // Ignore angle for circles
@@ -69,11 +70,11 @@ export class FallingObject {
       }
 
       case 'triangle': {
-        const w = width;
-        const h = height;
-        const v1 = { x: 0, y: -h / 2 };
-        const v2 = { x: w / 2, y: h / 2 };
-        const v3 = { x: -w / 2, y: h / 2 };
+        if (!points || points.length !== 3) {
+          console.error('Triangle falling object requires 3 points');
+          return;
+        }
+        const [v1, v2, v3] = points;
 
         const vertices = new Float32Array([
           v1.x / SCALE, -v1.y / SCALE,
@@ -152,7 +153,8 @@ export class FallingObject {
       width = 0,
       height = 0,
       angle = 0,
-      radius
+      radius,
+      points
     } = config;
 
     // Ignore angle for circles
@@ -171,11 +173,10 @@ export class FallingObject {
       }
 
       case 'triangle': {
-        const w = width;
-        const h = height;
-        const v1 = { x: 0, y: -h / 2 };
-        const v2 = { x: w / 2, y: h / 2 };
-        const v3 = { x: -w / 2, y: h / 2 };
+        if (!points || points.length !== 3) {
+          return graphics;
+        }
+        const [v1, v2, v3] = points;
 
         graphics.poly([v1.x, v1.y, v2.x, v2.y, v3.x, v3.y]);
         graphics.fill({ color: FALLING_OBJECT_COLOR });

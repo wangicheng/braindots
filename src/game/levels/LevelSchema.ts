@@ -25,7 +25,7 @@ export interface ObstacleConfig {
   height?: number;
   radius?: number; // For circle
   angle?: number; // Degrees
-  points?: Vec2[]; // For c_shape (3 coordinates)
+  points?: Vec2[]; // For c_shape or triangle (3 coordinates)
   thickness?: number; // For c_shape
   cap?: 'round' | 'square'; // Defaults to 'round' for c_shape
 }
@@ -46,6 +46,7 @@ export interface FallingObjectConfig {
   height?: number;
   radius?: number; // For circle
   angle?: number;
+  points?: Vec2[]; // For triangle (3 coordinates)
 }
 
 export interface IceBlockConfig {
