@@ -31,11 +31,11 @@ export interface ObstacleConfig {
 }
 
 export interface NetConfig {
-  x: number;
-  y: number;
+  x: number;         // Center X
+  y: number;         // Center Y
   width: number;
   height: number;
-  angle?: number; // Degrees
+  angle?: number;    // Degrees
 }
 
 export interface FallingObjectConfig {

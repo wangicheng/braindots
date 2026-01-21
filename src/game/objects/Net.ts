@@ -16,23 +16,8 @@ export class Net {
     const world = physicsWorld.getWorld();
     const R = physicsWorld.getRAPIER();
 
-    // Calculate center relative to top-left anchor for physics body
     const rad = (config.angle || 0) * (Math.PI / 180);
-    const w2 = config.width / 2;
-    const h2 = config.height / 2;
-
-    // Local center relative to pivot (0,0)
-    const cx = w2;
-    const cy = h2;
-
-    // Rotate (cx, cy)
-    const rotatedCx = cx * Math.cos(rad) - cy * Math.sin(rad);
-    const rotatedCy = cx * Math.sin(rad) + cy * Math.cos(rad);
-
-    const worldCenterX = config.x + rotatedCx;
-    const worldCenterY = config.y + rotatedCy;
-
-    const physicsPos = physicsWorld.toPhysics(worldCenterX, worldCenterY);
+    const physicsPos = physicsWorld.toPhysics(config.x, config.y);
 
     const rigidBodyDesc = R.RigidBodyDesc.fixed()
       .setTranslation(physicsPos.x, physicsPos.y)
@@ -57,12 +42,6 @@ export class Net {
     const pos = this.body.translation();
     const angle = this.body.rotation();
 
-    // The visual anchor for Net is top-left, but physics body is at center.
-    // However, if we follow the same pattern as others:
-    // Actually, for Net, the creator set it up with top-left anchor.
-    // Let's fix that to use center anchor for easier scaling/positioning in update.
-
-    // Instead of complex math, just scale and reposition the container
     this.graphics.position.x = pos.x * SCALE * scaleFactor;
     this.graphics.position.y = -pos.y * SCALE * scaleFactor;
     this.graphics.rotation = -angle;
@@ -80,18 +59,8 @@ export class Net {
   static createVisual(config: NetConfig): PIXI.Container {
     const graphics = new PIXI.Container();
 
-    // Calculate center position to match physics body
-    const rad = (config.angle || 0) * (Math.PI / 180);
-    const w2 = config.width / 2;
-    const h2 = config.height / 2;
-
-    // Rotate center offset vector (w/2, h/2)
-    const rotatedCx = w2 * Math.cos(rad) - h2 * Math.sin(rad);
-    const rotatedCy = w2 * Math.sin(rad) + h2 * Math.cos(rad);
-
-    graphics.x = config.x + rotatedCx;
-    graphics.y = config.y + rotatedCy;
-    // We will set pos/rotation in update, but initial setup helps
+    graphics.x = config.x;
+    graphics.y = config.y;
     if (config.angle) {
       graphics.rotation = config.angle * (Math.PI / 180);
     }

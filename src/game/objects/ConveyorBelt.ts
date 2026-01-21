@@ -160,6 +160,7 @@ export class ConveyorBelt {
       g.arc(-w / 2, 0, r, Math.PI / 2, -Math.PI / 2);
       // Close path and stroke (no fill - transparent)
       g.closePath();
+      g.fill({ color: 0xFFFFFF, alpha: 0.001 }); // Transparent fill for hit detection
       g.stroke({ width: BORDER_WIDTH, color: CONVEYOR_BELT_COLOR });
     };
 

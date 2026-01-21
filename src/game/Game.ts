@@ -17,6 +17,7 @@ import { Seesaw } from './objects/Seesaw';
 import { ConveyorBelt } from './objects/ConveyorBelt';
 import { Button } from './objects/Button';
 import { PenSelectionUI } from './ui/PenSelectionUI';
+import { EditorUI } from './ui/EditorUI';
 import { ConfirmDialog } from './ui/modals/ConfirmDialog';
 import { type Pen, DEFAULT_PEN } from './data/PenData';
 import { DrawingManager } from './input/DrawingManager';
@@ -48,6 +49,7 @@ export const GameState = {
   WON: 2,
   LOST: 3,
   MENU: 4,
+  EDIT: 5,
 } as const;
 export type GameState = typeof GameState[keyof typeof GameState];
 
@@ -85,6 +87,11 @@ export class Game {
   private restartBtnContainer: PIXI.Container | null = null;
   private homeBtnContainer: PIXI.Container | null = null;
   private publishBtnContainer: PIXI.Container | null = null;
+  private editorUI: EditorUI | null = null;
+  private editingLevel: LevelData | null = null;
+  private editorObjects: { container: PIXI.Container, data: any, type: string }[] = [];
+  private selectedObject: { container: PIXI.Container, data: any, type: string } | null = null;
+  private selectionEffect: PIXI.Graphics | null = null;
 
   // Collision handle mapping for ball detection
   private ballColliderHandles: Map<number, Ball> = new Map();
@@ -251,6 +258,8 @@ export class Game {
       this.publishBtnContainer.position.set(publishX, btnY);
       this.updateButtonSize(this.publishBtnContainer, btnSize, fontSize);
     }
+
+
   }
 
   /**
@@ -294,12 +303,19 @@ export class Game {
     // Clear existing dynamic objects
     this.clearLevel();
 
-    // Show/Hide Publish Button
+    // Show/Hide Publish and Edit Buttons
     if (this.publishBtnContainer) {
-      // Only show if author is current user AND level is NOT published
       const isMyDraft = levelData.authorId === CURRENT_USER_ID && levelData.isPublished === false;
       this.publishBtnContainer.visible = isMyDraft;
+
+      // If in Editor Play Mode, hide global buttons (EditorUI handles them)
+      if (isMyDraft) {
+        if (this.penBtnContainer) this.penBtnContainer.visible = false;
+        if (this.restartBtnContainer) this.restartBtnContainer.visible = false;
+        if (this.homeBtnContainer) this.homeBtnContainer.visible = false;
+      }
     }
+
 
     // Spawn Balls
     const { blue, pink } = levelData.balls;
@@ -397,6 +413,11 @@ export class Game {
 
     // Update DrawingManager with collision provider
     if (this.drawingManager) {
+      this.drawingManager.enable(
+        this.interactionArea,
+        this.onLineDrawn.bind(this),
+        this.startGame.bind(this)
+      );
       this.drawingManager.setCollisionProvider({
         isPointValid: (point: Point) => {
           // Unscale from visual space to design space for physics check
@@ -427,6 +448,7 @@ export class Game {
     }
   }
 
+
   /**
    * Clear current level objects
    */
@@ -439,29 +461,9 @@ export class Game {
     if (this.penBtnContainer) {
       this.penBtnContainer.visible = true;
     }
-    // We should re-evaluate visibility of publish button based on current level data
-    // But since clearLevel is called at start of loadLevel (where we set visibility), we might want to hide it here temporarily
-    // actually loadLevel calls clearLevel, then sets visibility.
-    // But if we restart? restart calls loadLevel.
-    // So it's fine. 
-    // However, during gameplay, if we stop/reset?
-    // Game doesn't really have a "Stop" button that keeps you in the level but resets state other than restartLevel.
-    // restartLevel calls loadLevel.
-    // Implementation details: clearLevel hides UI elements?
-    // No, setupDrawing enables/disables?
-    // startGame hides penBtnContainer.
-    // clearLevel should RESTORE penBtnContainer.
-    // Should it restore publishBtnContainer?
-    // publishBtnContainer is conditional.
-    // Let's safe-guard:
+
     if (this.publishBtnContainer) {
-      // logic determines visibility in loadLevel. Here we hide or leave?
-      // If we just cleared level, we are essentially modifying state.
-      // Usually clearLevel is followed by object setup.
-      // If we are just resetting for replay?
-      // Let's rely on loadLevel to set it.
-      // But if we are in GameState.PLAYING and hit restart, we go to loadLevel.
-      // The issue is if we have other states.
+      // Logic managed by loadLevel/startLevel
     }
 
     // Clear balls
@@ -531,7 +533,12 @@ export class Game {
     this.buttons = [];
     this.buttonColliderHandles.clear();
 
-
+    // Clear Editor Objects
+    for (const obj of this.editorObjects) {
+      obj.container.destroy();
+    }
+    this.editorObjects = [];
+    this.deselectObject();
 
     if (this.drawingManager) {
       this.drawingManager.cancelDrawing();
@@ -611,9 +618,6 @@ export class Game {
     this.startGame();
   }
 
-  /**
-   * Create UI overlay
-   */
   /**
    * Create UI overlay on Canvas
    */
@@ -1256,7 +1260,16 @@ export class Game {
     const levels = await levelService.getLevelList();
 
     this.levelSelectionUI = new LevelSelectionUI(levels, (levelData) => {
-      this.startLevel(levelData);
+      if (levelData.authorId === CURRENT_USER_ID && !levelData.isPublished) {
+        console.log('Entering Edit Mode for level:', levelData.id);
+        this.startLevel(levelData);
+        // TODO: Switch to GameState.EDIT fully when EditorUI is ready
+        // this.gameState = GameState.EDIT;
+      } else {
+        this.startLevel(levelData);
+      }
+    }, () => {
+      this.createNewLevel();
     }, this.laserTexture || undefined, (pen) => {
       this.currentPen = pen;
       if (this.drawingManager) {
@@ -1268,6 +1281,16 @@ export class Game {
 
   private showLevelSelection(): void {
     this.gameState = GameState.MENU;
+    // Clear editing session
+    this.editingLevel = null;
+    if (this.editorUI) {
+      this.editorUI.visible = false;
+      this.editorUI.destroy(); // Destroy it to reset state? Or keep?
+      // Destroying is safer to reset tools/toggles completely.
+      this.uiLayer.removeChild(this.editorUI);
+      this.editorUI = null;
+    }
+
     if (this.levelSelectionUI) {
       this.levelSelectionUI.setPen(this.currentPen.id);
     }
@@ -1288,9 +1311,46 @@ export class Game {
 
     await this.loadLevel(levelData);
 
-    if (this.penBtnContainer) this.penBtnContainer.visible = true;
-    if (this.restartBtnContainer) this.restartBtnContainer.visible = true;
-    if (this.homeBtnContainer) this.homeBtnContainer.visible = true;
+    if (this.editorUI) {
+      this.editorUI.visible = false;
+    }
+
+    // If this is the author's unpublished level, ensure Editor UI (Toggle) is visible
+    if (levelData.authorId === CURRENT_USER_ID && !levelData.isPublished) {
+      if (!this.editorUI) {
+        // Initialize Editor UI if not exists
+        this.editorUI = new EditorUI(
+          () => this.showLevelSelection(),
+          (mode) => this.toggleEditorMode(mode),
+          (type) => this.addObject(type),
+          () => this.copySelectedObject(),
+          () => this.deleteSelectedObject(),
+          () => this.restartLevel(),
+          () => this.showPenSelection()
+        );
+        this.uiLayer.addChild(this.editorUI);
+      }
+
+      // Ensure visibility and correct state (Play Mode)
+      this.editorUI.visible = true;
+      this.editorUI.setUIState('play');
+      this.editingLevel = levelData; // Track editing level so toggle works
+    } else {
+      if (this.editorUI) {
+        this.editorUI.visible = false;
+      }
+    }
+
+    const isEditorPlay = levelData.authorId === CURRENT_USER_ID && !levelData.isPublished;
+    if (isEditorPlay) {
+      if (this.penBtnContainer) this.penBtnContainer.visible = false;
+      if (this.restartBtnContainer) this.restartBtnContainer.visible = false;
+      if (this.homeBtnContainer) this.homeBtnContainer.visible = false;
+    } else {
+      if (this.penBtnContainer) this.penBtnContainer.visible = true;
+      if (this.restartBtnContainer) this.restartBtnContainer.visible = true;
+      if (this.homeBtnContainer) this.homeBtnContainer.visible = true;
+    }
     // publishBtnContainer visibility is controlled in loadLevel based on level data
   }
 
@@ -1301,7 +1361,7 @@ export class Game {
     message: string,
     onConfirm: () => void,
     onCancel: () => void,
-    options?: { confirmText?: string; cancelText?: string; showCancel?: boolean }
+    options?: { confirmText?: string; cancelText?: string; showCancel?: boolean; onDismiss?: () => void }
   ): void {
     this.closeConfirmDialog();
     this.confirmDialog = new ConfirmDialog(message, onConfirm, onCancel, options);
@@ -1483,4 +1543,629 @@ export class Game {
   getApp(): PIXI.Application {
     return this.app;
   }
+
+  private async createNewLevel(): Promise<void> {
+    // Create default level data
+    const newLevel: LevelData = {
+      id: `custom_${Date.now()}`,
+      author: 'Me',
+      authorId: CURRENT_USER_ID,
+      createdAt: Date.now(),
+      likes: 0,
+      isPublished: false,
+      authorPassed: false,
+      balls: {
+        blue: { x: 300, y: 500 },
+        pink: { x: 900, y: 500 }
+      },
+      obstacles: []
+    };
+
+    console.log('Creating new level:', newLevel);
+    await MockLevelService.getInstance().uploadLevel(newLevel);
+
+    // Start in Edit mode (currently just Play mode as placeholder until EditorUI is ready)
+    // await this.startLevel(newLevel); // Original line
+    this.startEditor(newLevel);
+
+    // TODO: Switch to GameState.EDIT once implemented
+    // this.gameState = GameState.EDIT;
+  }
+
+  private startEditor(levelData: LevelData): void {
+    console.log('Starting Editor for:', levelData.id);
+    this.gameState = GameState.EDIT;
+    this.editingLevel = levelData;
+
+    // Clear everything
+    this.clearLevel(); // This clears physics bodies and gameContainer children
+    this.gameContainer.visible = true;
+    this.menuContainer.visible = false;
+
+    // Reset Selection
+    this.deselectObject();
+
+    // Disable Gameplay interactions
+    // Disable Gameplay interactions
+    if (this.drawingManager) {
+      this.drawingManager.disable(this.interactionArea);
+    }
+
+    // Hide Play UI
+    if (this.penBtnContainer) this.penBtnContainer.visible = false;
+    if (this.restartBtnContainer) this.restartBtnContainer.visible = false;
+    if (this.homeBtnContainer) this.homeBtnContainer.visible = false;
+    if (this.publishBtnContainer) this.publishBtnContainer.visible = false;
+
+
+    // Load Editor Level (Visuals)
+    this.loadEditorLevel(levelData);
+
+    // Show Editor UI
+    if (this.editorUI) {
+      this.uiLayer.removeChild(this.editorUI);
+      this.editorUI.destroy();
+      this.editorUI = null;
+    }
+
+    this.editorUI = new EditorUI(
+      () => this.handleEditorClose(), // On Close
+      (mode) => this.toggleEditorMode(mode),     // On Mode Toggle
+      (type, subType, initialEventData) => this.addObject(type, subType, initialEventData),   // On Add Object
+      () => this.copySelectedObject(), // On Copy
+      () => this.deleteSelectedObject(), // On Delete
+      () => this.restartLevel(), // On Restart
+      () => this.showPenSelection() // On Pen
+    );
+    this.uiLayer.addChild(this.editorUI);
+    this.editorUI.setUIState('edit');
+  }
+
+  private toggleEditorMode = (mode: 'edit' | 'play') => {
+    if (mode === 'play') {
+      this.toggleTestPlay();
+    } else {
+      // Switch back to edit is handled by startEditor usually, but here we might just need to update UI state
+      // if we are in 'play' mode (Test Play).
+      // However, toggleTestPlay calls startLevel which hides EditorUI?
+      // We need to fix that interaction.
+      this.stopTestPlay();
+    }
+  }
+
+  private async stopTestPlay() {
+    // Switch back to Edit Mode
+    if (this.editingLevel) {
+      this.startEditor(this.editingLevel);
+    }
+  }
+
+  private loadEditorLevel(data: LevelData): void {
+    this.editorObjects = [];
+    const scaleFactor = getScaleFactor();
+
+    // Helper to add editable object
+    const addEditable = (container: PIXI.Container, dataObj: any, type: string, x?: number, y?: number) => {
+      const px = (x !== undefined ? x : dataObj.x);
+      const py = (y !== undefined ? y : dataObj.y);
+      container.position.set(px * scaleFactor, py * scaleFactor);
+      container.scale.set(scaleFactor);
+
+      this.makeDraggable(container, (newX, newY) => {
+        // Handle updates
+        if (type === 'laser') {
+          const dx = newX - (dataObj.x1 + dataObj.x2) / 2;
+          const dy = newY - (dataObj.y1 + dataObj.y2) / 2;
+          dataObj.x1 += dx;
+          dataObj.y1 += dy;
+          dataObj.x2 += dx;
+          dataObj.y2 += dy;
+        } else {
+          // standard x/y
+          dataObj.x = newX;
+          dataObj.y = newY;
+        }
+      }, scaleFactor, dataObj, type);
+
+      this.gameContainer.addChild(container);
+      this.editorObjects.push({ container, data: dataObj, type });
+    };
+
+    // Balls (Editable)
+    const blue = Ball.createVisual(0, 0, 'blue');
+    addEditable(blue, data.balls.blue, 'ball_blue');
+
+    const pink = Ball.createVisual(0, 0, 'pink');
+    addEditable(pink, data.balls.pink, 'ball_pink');
+
+    // Obstacles
+    data.obstacles.forEach(obs => {
+      const vis = Obstacle.createVisual(obs);
+      addEditable(vis, obs, 'obstacle');
+    });
+
+    // Falling Objects
+    if (data.fallingObjects) {
+      data.fallingObjects.forEach(obj => {
+        const vis = FallingObject.createVisual(obj);
+        addEditable(vis, obj, 'falling');
+      });
+    }
+
+    // Nets
+    if (data.nets) {
+      data.nets.forEach(net => {
+        const vis = Net.createVisual(net);
+        addEditable(vis, net, 'net');
+      });
+    }
+
+    // Ice Blocks
+    if (data.iceBlocks) {
+      data.iceBlocks.forEach(ice => {
+        const vis = IceBlock.createVisual(ice);
+        addEditable(vis, ice, 'ice');
+      });
+    }
+
+    // Lasers
+    if (data.lasers && this.laserTexture) {
+      data.lasers.forEach(laser => {
+        const vis = Laser.createVisual(laser, this.laserTexture!);
+        const cx = (laser.x1 + laser.x2) / 2;
+        const cy = (laser.y1 + laser.y2) / 2;
+        addEditable(vis, laser, 'laser', cx, cy);
+      });
+    }
+
+    // Seesaws
+    if (data.seesaws) {
+      data.seesaws.forEach(seesaw => {
+        const vis = Seesaw.createVisual(seesaw);
+        addEditable(vis, seesaw, 'seesaw');
+      });
+    }
+
+    // Conveyor Belts
+    if (data.conveyors) {
+      data.conveyors.forEach(conveyor => {
+        const vis = ConveyorBelt.createVisual(conveyor);
+        addEditable(vis, conveyor, 'conveyor');
+      });
+    }
+
+    // Buttons
+    if (data.buttons) {
+      data.buttons.forEach(button => {
+        const vis = Button.createVisual(button);
+        addEditable(vis, button, 'button');
+      });
+    }
+  }
+
+  private makeDraggable(
+    container: PIXI.Container,
+    onUpdate: (x: number, y: number) => void,
+    scaleFactor: number,
+    dataObj?: any,
+    type?: string,
+    initialEventData?: any
+  ) {
+    container.eventMode = 'static';
+    container.cursor = 'grab';
+    let dragData: any = null;
+    let startX = 0;
+    let startY = 0;
+    let initialObjX = 0;
+    let initialObjY = 0;
+
+    const cleanup = () => {
+      container.off('globalpointermove', onMove);
+      window.removeEventListener('pointerup', endDrag);
+      window.removeEventListener('pointercancel', endDrag);
+    };
+
+    const onMove = (e: PIXI.FederatedPointerEvent) => {
+      if (dragData) {
+        const dx = (e.global.x - startX);
+        const dy = (e.global.y - startY);
+
+        const newX = initialObjX + dx;
+        const newY = initialObjY + dy;
+
+        container.position.set(newX, newY);
+
+        // Update selection effect position if moving selected object
+        if (this.selectedObject && this.selectedObject.container === container && this.selectionEffect) {
+          this.selectionEffect.position.set(newX, newY);
+        }
+      }
+    };
+
+    const endDrag = () => {
+      if (dragData) {
+        // Convert final screen pos back to design pos
+        const designX = container.x / scaleFactor;
+        const designY = container.y / scaleFactor;
+
+        onUpdate(designX, designY);
+
+        container.alpha = 1;
+        container.cursor = 'grab';
+        dragData = null;
+        cleanup();
+      }
+    };
+
+    const startDrag = (eventData: any) => {
+      // Support both FederatedPointerEvent and simpler data objects
+      dragData = eventData.data || eventData;
+
+      container.alpha = 0.5;
+      container.cursor = 'grabbing';
+
+      // Ensure we have access to global point
+      if (dragData && dragData.global) {
+        startX = dragData.global.x;
+        startY = dragData.global.y;
+      } else {
+        // Fallback or error
+        console.warn("Drag started without valid global position");
+        if (container.parent) {
+          const global = container.parent.toGlobal(container.position);
+          startX = global.x;
+          startY = global.y;
+        } else {
+          startX = 0;
+          startY = 0;
+        }
+      }
+
+      initialObjX = container.x;
+      initialObjY = container.y;
+
+      if (eventData.stopPropagation) {
+        eventData.stopPropagation();
+      }
+
+      // Handle Selection
+      if (dataObj && type) {
+        this.selectObject(container, dataObj, type);
+      }
+
+      // Attach listener for move on container (globally tracks pointer)
+      container.on('globalpointermove', onMove);
+      // Attach listener for up on window (catches release anywhere including outside/holes)
+      window.addEventListener('pointerup', endDrag);
+      window.addEventListener('pointercancel', endDrag);
+    };
+
+    container.on('pointerdown', startDrag);
+
+    // Initial Drag (from UI spawn)
+    if (initialEventData) {
+      startDrag(initialEventData);
+    }
+  }
+
+  private selectObject(container: PIXI.Container, data: any, type: string) {
+    this.selectedObject = { container, data, type };
+
+    // Create visual feedback
+    if (this.selectionEffect) {
+      this.selectionEffect.destroy();
+      this.selectionEffect = null;
+    }
+
+    const bounds = container.getLocalBounds();
+    this.selectionEffect = new PIXI.Graphics();
+    this.selectionEffect.rect(bounds.x - 5, bounds.y - 5, bounds.width + 10, bounds.height + 10);
+    this.selectionEffect.stroke({ width: 2, color: 0x00FF00 }); // Green selection box
+    this.selectionEffect.position.copyFrom(container.position);
+    this.selectionEffect.scale.copyFrom(container.scale);
+    // Add to gameContainer but above object? Or just add to UI layer?
+    // Adding to gameContainer ensures it moves with camera/scale if relevant, but here we are in editor.
+    // Actually, container coordinates are relative to gameContainer.
+    // But container itself is transformed.
+    // Safer to add selectionEffect as generic child of gameContainer and sync pos.
+    this.gameContainer.addChild(this.selectionEffect);
+
+    // Update Editor UI
+    if (this.editorUI) {
+      const isBall = type === 'ball_blue' || type === 'ball_pink';
+      this.editorUI.updateTools(true, isBall);
+    }
+  }
+
+  private deselectObject() {
+    this.selectedObject = null;
+    if (this.selectionEffect) {
+      this.selectionEffect.destroy();
+      this.selectionEffect = null;
+    }
+    if (this.editorUI) {
+      this.editorUI.updateTools(false, false);
+    }
+  }
+
+  private copySelectedObject() {
+    if (!this.selectedObject || !this.editingLevel) return;
+    const { data, type } = this.selectedObject;
+
+    // Prevent copying balls
+    if (type === 'ball_blue' || type === 'ball_pink') return;
+
+    // Clone data
+    const newData = { ...data };
+    newData.x += 20; // Offset slightly
+    newData.y += 20;
+
+    // Add to level data
+    if (type === 'obstacle') {
+      this.editingLevel.obstacles.push(newData);
+
+      // Create Visual
+      const vis = Obstacle.createVisual(newData);
+      const scaleFactor = getScaleFactor();
+      vis.position.set(newData.x * scaleFactor, newData.y * scaleFactor);
+      vis.scale.set(scaleFactor);
+
+      this.makeDraggable(vis, (x, y) => {
+        newData.x = x;
+        newData.y = y;
+      }, scaleFactor, newData, type);
+
+      this.gameContainer.addChild(vis);
+      const newObj = { container: vis, data: newData, type };
+      this.editorObjects.push(newObj);
+
+      // Select new object
+      this.selectObject(vis, newData, type);
+    }
+  }
+
+  private deleteSelectedObject() {
+    if (!this.selectedObject || !this.editingLevel) return;
+    const { container, data, type } = this.selectedObject;
+
+    // Prevent deleting balls
+    if (type === 'ball_blue' || type === 'ball_pink') return;
+
+    // Remove from level data
+    // Remove from level data
+    if (type === 'obstacle') {
+      const index = this.editingLevel.obstacles.indexOf(data);
+      if (index > -1) this.editingLevel.obstacles.splice(index, 1);
+    } else if (type === 'falling' && this.editingLevel.fallingObjects) {
+      const index = this.editingLevel.fallingObjects.indexOf(data);
+      if (index > -1) this.editingLevel.fallingObjects.splice(index, 1);
+    } else if (type === 'net' && this.editingLevel.nets) {
+      const index = this.editingLevel.nets.indexOf(data);
+      if (index > -1) this.editingLevel.nets.splice(index, 1);
+    } else if (type === 'ice' && this.editingLevel.iceBlocks) {
+      const index = this.editingLevel.iceBlocks.indexOf(data);
+      if (index > -1) this.editingLevel.iceBlocks.splice(index, 1);
+    } else if (type === 'laser' && this.editingLevel.lasers) {
+      const index = this.editingLevel.lasers.indexOf(data);
+      if (index > -1) this.editingLevel.lasers.splice(index, 1);
+    } else if (type === 'seesaw' && this.editingLevel.seesaws) {
+      const index = this.editingLevel.seesaws.indexOf(data);
+      if (index > -1) this.editingLevel.seesaws.splice(index, 1);
+    } else if (type === 'conveyor' && this.editingLevel.conveyors) {
+      const index = this.editingLevel.conveyors.indexOf(data);
+      if (index > -1) this.editingLevel.conveyors.splice(index, 1);
+    } else if (type === 'button' && this.editingLevel.buttons) {
+      const index = this.editingLevel.buttons.indexOf(data);
+      if (index > -1) this.editingLevel.buttons.splice(index, 1);
+    }
+
+    // Remove Visual
+    container.destroy();
+
+    // Remove from editorObjects list
+    const objIndex = this.editorObjects.findIndex(obj => obj.container === container);
+    if (objIndex > -1) {
+      this.editorObjects.splice(objIndex, 1);
+    }
+
+    // Deselect
+    this.deselectObject();
+  }
+
+  private async saveLevel() {
+    if (this.editingLevel) {
+      await MockLevelService.getInstance().uploadLevel(this.editingLevel);
+      console.log("Level Saved");
+    }
+  }
+
+  private handleEditorClose() {
+    this.showConfirmDialog(
+      'Do you want to save your progress?',
+      async () => {
+        this.closeConfirmDialog();
+        await this.saveLevel();
+        this.showLevelSelection();
+      },
+      () => {
+        this.closeConfirmDialog();
+        this.showLevelSelection();
+      },
+      {
+        confirmText: 'Save',
+        cancelText: 'Discard',
+        onDismiss: () => this.closeConfirmDialog()
+      }
+    );
+  }
+
+  public addObject(type: string, subType: string = 'rectangle', initialEventData?: any): void {
+    if (!this.editingLevel) return;
+
+    const scaleFactor = getScaleFactor();
+
+    // Determine Spawn Position
+    let spawnX = getCanvasWidth() / 2;
+    let spawnY = getCanvasHeight() / 2;
+
+    if (initialEventData && initialEventData.global) {
+      spawnX = initialEventData.global.x;
+      spawnY = initialEventData.global.y;
+    }
+
+    const designX = spawnX / scaleFactor;
+    const designY = spawnY / scaleFactor;
+
+    let newObj: any = null;
+    let visual: PIXI.Container | null = null;
+    let list: any[] | null = null;
+    let objTypeTag = '';
+
+    if (type === 'obstacle') {
+      list = this.editingLevel.obstacles;
+      objTypeTag = 'obstacle';
+
+      if (subType === 'circle') {
+        newObj = { type: 'circle', radius: 50, x: designX, y: designY, angle: 0 };
+      } else if (subType === 'triangle') {
+        newObj = { type: 'triangle', width: 100, height: 100, x: designX, y: designY, angle: 0 };
+      } else if (subType === 'c_shape') {
+        newObj = {
+          type: 'c_shape',
+          x: designX,
+          y: designY,
+          angle: 0,
+          points: [{ x: 50, y: -50 }, { x: 50, y: 50 }, { x: -50, y: 0 }],
+          thickness: 20
+        };
+      } else {
+        // Default to rectangle
+        newObj = { type: 'rectangle', width: 100, height: 100, x: designX, y: designY, angle: 0 };
+      }
+
+      visual = Obstacle.createVisual(newObj);
+
+    } else if (type === 'falling') {
+      if (!this.editingLevel.fallingObjects) this.editingLevel.fallingObjects = [];
+      list = this.editingLevel.fallingObjects;
+      objTypeTag = 'falling';
+
+      if (subType === 'circle') {
+        newObj = { type: 'circle', radius: 50, x: designX, y: designY, angle: 0 };
+      } else if (subType === 'triangle') {
+        newObj = { type: 'triangle', width: 100, height: 100, x: designX, y: designY, angle: 0 };
+      } else {
+        // Default to rectangle
+        newObj = { type: 'rectangle', width: 100, height: 100, x: designX, y: designY, angle: 0 };
+      }
+
+      visual = FallingObject.createVisual(newObj);
+
+    } else if (type === 'special') {
+      // Special Objects
+      objTypeTag = subType; // e.g. 'conveyor', 'net'
+
+      switch (subType) {
+        case 'conveyor':
+          if (!this.editingLevel.conveyors) this.editingLevel.conveyors = [];
+          list = this.editingLevel.conveyors;
+          newObj = { x: designX, y: designY, width: 300, angle: 0, acceleration: 2 };
+          visual = ConveyorBelt.createVisual(newObj);
+          break;
+        case 'net':
+          if (!this.editingLevel.nets) this.editingLevel.nets = [];
+          list = this.editingLevel.nets;
+          newObj = { x: designX, y: designY, width: 150, height: 100, angle: 0 };
+          visual = Net.createVisual(newObj);
+          break;
+        case 'ice':
+          if (!this.editingLevel.iceBlocks) this.editingLevel.iceBlocks = [];
+          list = this.editingLevel.iceBlocks;
+          newObj = { x: designX, y: designY, width: 100, height: 100, meltTime: 1 };
+          visual = IceBlock.createVisual(newObj);
+          break;
+        case 'laser':
+          if (!this.editingLevel.lasers) this.editingLevel.lasers = [];
+          list = this.editingLevel.lasers;
+          // Laser defined by start/end points. 
+          // Default to horizontal line centered at designX, Y
+          newObj = { x1: designX - 100, y1: designY, x2: designX + 100, y2: designY };
+          if (!this.laserTexture) return;
+          visual = Laser.createVisual(newObj, this.laserTexture);
+          break;
+        case 'seesaw':
+          if (!this.editingLevel.seesaws) this.editingLevel.seesaws = [];
+          list = this.editingLevel.seesaws;
+          newObj = { x: designX, y: designY, width: 300, height: 20, angle: 0 };
+          visual = Seesaw.createVisual(newObj);
+          break;
+        case 'button':
+          if (!this.editingLevel.buttons) this.editingLevel.buttons = [];
+          list = this.editingLevel.buttons;
+          newObj = { x: designX, y: designY, angle: 0 };
+          visual = Button.createVisual(newObj);
+          break;
+      }
+    }
+
+    if (visual && newObj && list) {
+      list.push(newObj);
+
+      let posX = newObj.x;
+      let posY = newObj.y;
+      if (objTypeTag === 'laser') {
+        posX = (newObj.x1 + newObj.x2) / 2;
+        posY = (newObj.y1 + newObj.y2) / 2;
+      }
+
+      visual.position.set(posX * scaleFactor, posY * scaleFactor);
+      visual.scale.set(scaleFactor);
+
+      this.makeDraggable(visual, (x, y) => {
+        if (objTypeTag === 'laser') {
+          // For laser, x,y is just visual pos. We need to shift endpoints.
+          const dx = x - (newObj.x1 + newObj.x2) / 2;
+          const dy = y - (newObj.y1 + newObj.y2) / 2;
+          newObj.x1 += dx;
+          newObj.y1 += dy;
+          newObj.x2 += dx;
+          newObj.y2 += dy;
+        } else {
+          newObj.x = x;
+          newObj.y = y;
+        }
+      }, scaleFactor, newObj, objTypeTag, initialEventData);
+
+      this.gameContainer.addChild(visual);
+      this.editorObjects.push({ container: visual, data: newObj, type: objTypeTag });
+
+      // Auto select
+      this.selectObject(visual, newObj, objTypeTag);
+    }
+  }
+
+  private async toggleTestPlay() {
+    if (!this.editingLevel) return;
+
+    // Ensure state is updated even if we were somehow in a weird state
+    // We trust the UI event that triggered this.
+
+    if (this.editorUI) {
+      // Do not hide UI, just update mode
+      this.editorUI.setUIState('play');
+    }
+
+    await this.startLevel(this.editingLevel);
+
+    // Ensure EditorUI remains visible and in play mode
+    if (this.editorUI) {
+      this.editorUI.visible = true;
+      this.editorUI.setUIState('play');
+      // Important: Set eventMode to passive/none so clicks pass to game, 
+      // BUT we still need the Top Bar (Toggle) to receive clicks.
+      // EditorUI uses specific hit areas, so as long as we don't have a fullscreen transparent hit area, we are fine.
+      // EditorUI container default has no hit area.
+    }
+  }
 }
+

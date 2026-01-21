@@ -156,7 +156,7 @@ export class Seesaw {
   }
 
   static createVisual(config: SeesawConfig): PIXI.Container {
-    const { x, y, width, height, angle = 0 } = config;
+    const { width, height, angle = 0 } = config;
     const angleRad = (angle * Math.PI) / 180;
 
     // Create main container
@@ -168,7 +168,7 @@ export class Seesaw {
     plankGraphics.fill({ color: SEESAW_COLOR });
 
     // Set initial position and rotation for plank
-    plankGraphics.position.set(x, y);
+    plankGraphics.position.set(0, 0);
     plankGraphics.rotation = angleRad;
 
     // Create Pivot (Axis) Graphics
@@ -185,7 +185,7 @@ export class Seesaw {
     pivotGraphics.fill({ color: 0xC8C8C8 });
 
     // Pivot is fixed at the anchor position
-    pivotGraphics.position.set(x, y);
+    pivotGraphics.position.set(0, 0);
 
     // Add children to container
     // Add plank first, then pivot on top

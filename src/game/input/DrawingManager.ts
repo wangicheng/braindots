@@ -50,6 +50,9 @@ export class DrawingManager {
     this.onLineComplete = callback;
     this.onDrawingEnd = onDrawingEnd || null;
 
+    // Ensure clean state
+    this.disable(interactionArea);
+
     interactionArea.eventMode = 'static';
     interactionArea.cursor = 'crosshair';
 
@@ -57,6 +60,22 @@ export class DrawingManager {
     interactionArea.on('pointermove', this.onPointerMove.bind(this));
     interactionArea.on('pointerup', this.onPointerUp.bind(this));
     interactionArea.on('pointerupoutside', this.onPointerUp.bind(this));
+  }
+
+  /**
+   * Disable drawing and remove listeners
+   */
+  disable(interactionArea: PIXI.Container): void {
+    if (!interactionArea) return;
+    interactionArea.eventMode = 'none'; // Or 'auto'
+    interactionArea.cursor = 'default';
+
+    interactionArea.removeAllListeners('pointerdown');
+    interactionArea.removeAllListeners('pointermove');
+    interactionArea.removeAllListeners('pointerup');
+    interactionArea.removeAllListeners('pointerupoutside');
+
+    this.cancelDrawing();
   }
 
   /**

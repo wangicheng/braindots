@@ -157,6 +157,10 @@ export class Button {
     graphics.position.set(x, y);
     graphics.rotation = rad;
 
+    // Hit Area (Transparent) - Covers full bounds
+    graphics.rect(-HORIZONTAL_BAR_WIDTH / 2, -VERTICAL_BAR_HEIGHT / 2, HORIZONTAL_BAR_WIDTH, VERTICAL_BAR_HEIGHT);
+    graphics.fill({ color: 0xFFFFFF, alpha: 0.001 });
+
     // Draw horizontal bar (top of T) - centered at top
     const hBarY = -VERTICAL_BAR_HEIGHT / 2 + BUTTON_THICKNESS / 2;
     graphics.rect(

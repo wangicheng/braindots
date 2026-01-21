@@ -19,6 +19,7 @@ import { CURRENT_USER_ID } from '../services/MockLevelService';
 export class LevelSelectionUI extends PIXI.Container {
   private levels: LevelData[];
   private onSelect: (level: LevelData) => void;
+  private onCreate: () => void;
   private currentPage: number = 0;
   private totalPages: number = 0;
   private laserTexture?: PIXI.Texture;
@@ -64,6 +65,7 @@ export class LevelSelectionUI extends PIXI.Container {
   constructor(
     levels: LevelData[],
     onSelect: (level: LevelData) => void,
+    onCreate: () => void,
     laserTexture?: PIXI.Texture,
     onPenSelect?: (pen: Pen) => void,
     initialPenId?: string
@@ -71,6 +73,7 @@ export class LevelSelectionUI extends PIXI.Container {
     super();
     this.levels = levels;
     this.onSelect = onSelect;
+    this.onCreate = onCreate;
     this.laserTexture = laserTexture;
     this.onPenSelect = onPenSelect;
     if (initialPenId) this.currentPenId = initialPenId;
@@ -213,6 +216,7 @@ export class LevelSelectionUI extends PIXI.Container {
     container.cursor = 'pointer';
     container.on('pointertap', () => {
       console.log('Create Level Attempt');
+      this.onCreate();
     });
 
     return container;

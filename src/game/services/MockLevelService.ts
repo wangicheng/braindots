@@ -126,9 +126,16 @@ export class MockLevelService {
     await new Promise(resolve => setTimeout(resolve, 500));
 
     const stored = this.getStoredLevels();
-    stored.push(level);
+    const index = stored.findIndex(l => l.id === level.id);
+
+    if (index >= 0) {
+      stored[index] = level;
+    } else {
+      stored.push(level);
+    }
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    console.log('Level uploaded:', level.id);
+    console.log('Level uploaded/updated:', level.id);
   }
 
   /**

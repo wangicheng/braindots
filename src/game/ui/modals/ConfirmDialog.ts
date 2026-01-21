@@ -9,6 +9,7 @@ export class ConfirmDialog extends PIXI.Container {
     confirmText?: string;
     cancelText?: string;
     showCancel?: boolean;
+    onDismiss?: () => void;
   };
 
   constructor(
@@ -19,6 +20,7 @@ export class ConfirmDialog extends PIXI.Container {
       confirmText?: string;
       cancelText?: string;
       showCancel?: boolean;
+      onDismiss?: () => void;
     }
   ) {
     super();
@@ -49,11 +51,18 @@ export class ConfirmDialog extends PIXI.Container {
 
     this.zIndex = 2000;
 
-    // 1. Dimmed Background
+    // 1. Dimmed Background (Overlay)
     const overlay = new PIXI.Graphics();
     overlay.rect(0, 0, canvasWidth, canvasHeight);
     overlay.fill({ color: 0x000000, alpha: 0.3 });
     overlay.eventMode = 'static';
+    // Dismiss on clicking background if onDismiss is provided
+    if (this.options.onDismiss) {
+      overlay.cursor = 'pointer';
+      overlay.on('pointertap', () => {
+        this.options.onDismiss?.();
+      });
+    }
     this.addChild(overlay);
 
     // 2. Dialog Container
@@ -61,6 +70,9 @@ export class ConfirmDialog extends PIXI.Container {
     const dialogHeight = scale(200);
     const dialog = new PIXI.Container();
     dialog.position.set((canvasWidth - dialogWidth) / 2, (canvasHeight - dialogHeight) / 2);
+    // Prevent clicks on dialog from triggering overlay dismissal
+    dialog.eventMode = 'static';
+    dialog.on('pointertap', (e) => e.stopPropagation());
     this.addChild(dialog);
 
     // Shadow
@@ -76,10 +88,6 @@ export class ConfirmDialog extends PIXI.Container {
     bg.rect(0, 0, dialogWidth, dialogHeight);
     bg.fill({ color: 0xFFFFFF });
     dialog.addChild(bg);
-
-    // Prevent clicks on dialog from closing
-    dialog.eventMode = 'static';
-    dialog.on('pointertap', (e) => e.stopPropagation());
 
     // 3. Message Text
     const messageText = new PIXI.Text({
@@ -133,6 +141,34 @@ export class ConfirmDialog extends PIXI.Container {
       this.onConfirmCallback();
     });
     dialog.addChild(confirmBtn);
+
+    // 5. Close Button (X) - Top Right
+    if (this.options.onDismiss) {
+      const closeBtnSize = scale(30);
+      const closeBtn = new PIXI.Container();
+      closeBtn.position.set(dialogWidth - closeBtnSize - scale(10), scale(10));
+      dialog.addChild(closeBtn);
+
+      const closeIcon = new PIXI.Text({
+        text: '\uF622', // Bootstrap-icons X (plain)
+        style: {
+          fontFamily: 'bootstrap-icons',
+          fontSize: scale(24),
+          fill: '#888888',
+          padding: scale(10)
+        }
+      });
+      closeIcon.anchor.set(0.5);
+      closeIcon.position.set(closeBtnSize / 2, closeBtnSize / 2);
+      closeBtn.addChild(closeIcon);
+
+      closeBtn.eventMode = 'static';
+      closeBtn.cursor = 'pointer';
+      closeBtn.on('pointertap', (e) => {
+        e.stopPropagation();
+        this.options.onDismiss?.();
+      });
+    }
   }
 
   destroy(options?: any): void {
