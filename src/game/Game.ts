@@ -18,6 +18,7 @@ import { ConveyorBelt } from './objects/ConveyorBelt';
 import { Button } from './objects/Button';
 import { PenSelectionUI } from './ui/PenSelectionUI';
 import { EditorUI } from './ui/EditorUI';
+import { TransformGizmo } from './editor/TransformGizmo';
 import { ConfirmDialog } from './ui/modals/ConfirmDialog';
 import { type Pen, DEFAULT_PEN } from './data/PenData';
 import { DrawingManager } from './input/DrawingManager';
@@ -42,7 +43,6 @@ import {
   scale,
   EDITOR_SELECTION_COLOR,
   EDITOR_SELECTION_ALPHA,
-  EDITOR_DRAG_ALPHA,
   EDITOR_OUTLINE_WIDTH_NORMAL,
   EDITOR_OUTLINE_WIDTH_FOCUSED,
   CONVEYOR_BELT_HEIGHT,
@@ -98,6 +98,7 @@ export class Game {
   private editorHasChanged: boolean = false;
   private editorObjects: { container: PIXI.Container, data: any, type: string }[] = [];
   private selectedObject: { container: PIXI.Container, data: any, type: string } | null = null;
+  private transformGizmo: TransformGizmo | null = null;
 
   // Collision handle mapping for ball detection
   private ballColliderHandles: Map<number, Ball> = new Map();
@@ -1641,6 +1642,15 @@ export class Game {
     // Load Editor Level (Visuals)
     this.loadEditorLevel(levelData);
 
+    // Create Transform Gizmo
+    if (this.transformGizmo) {
+      this.gameContainer.removeChild(this.transformGizmo);
+      this.transformGizmo.destroy();
+    }
+    this.transformGizmo = new TransformGizmo();
+    this.transformGizmo.zIndex = 1000; // Above all objects
+    this.gameContainer.addChild(this.transformGizmo);
+
     // Show Editor UI
     if (this.editorUI) {
       this.uiLayer.removeChild(this.editorUI);
@@ -1753,127 +1763,6 @@ export class Game {
     }
   }
 
-
-  private makeDraggable(
-    container: PIXI.Container,
-    onUpdate: (x: number, y: number) => void,
-    scaleFactor: number,
-    dataObj?: any,
-    type?: string,
-    initialEventData?: any
-  ) {
-    container.eventMode = 'static';
-    container.cursor = 'grab';
-    let dragData: any = null;
-    let startX = 0;
-    let startY = 0;
-    let initialObjX = 0;
-    let initialObjY = 0;
-
-    const cleanup = () => {
-      container.off('globalpointermove', onMove);
-      window.removeEventListener('pointerup', endDrag);
-      window.removeEventListener('pointercancel', endDrag);
-    };
-
-    const onMove = (e: PIXI.FederatedPointerEvent) => {
-      if (dragData) {
-        const dx = (e.global.x - startX);
-        const dy = (e.global.y - startY);
-
-        const newX = initialObjX + dx;
-        const newY = initialObjY + dy;
-
-        container.position.set(newX, newY);
-      }
-    };
-
-    const endDrag = () => {
-      if (dragData) {
-        // Convert final screen pos back to design pos
-        const designX = container.x / scaleFactor;
-        const designY = container.y / scaleFactor;
-
-        // Detect if actually moved
-        const dx = container.x - initialObjX;
-        const dy = container.y - initialObjY;
-        if (Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001) {
-          this.markAsEdited();
-        }
-
-        onUpdate(designX, designY);
-
-        container.alpha = 1;
-        container.cursor = 'grab';
-        dragData = null;
-        cleanup();
-      }
-    };
-
-    const startDrag = (eventData: any) => {
-      // Support both FederatedPointerEvent and simpler data objects
-      dragData = eventData.data || eventData;
-
-      container.alpha = EDITOR_DRAG_ALPHA;
-      container.cursor = 'grabbing';
-
-      // Ensure we have access to global point
-      if (dragData && dragData.global) {
-        startX = dragData.global.x;
-        startY = dragData.global.y;
-      } else {
-        // Fallback or error
-        console.warn("Drag started without valid global position");
-        if (container.parent) {
-          const global = container.parent.toGlobal(container.position);
-          startX = global.x;
-          startY = global.y;
-        } else {
-          startX = 0;
-          startY = 0;
-        }
-      }
-
-      initialObjX = container.x;
-      initialObjY = container.y;
-
-      if (eventData.stopPropagation) {
-        eventData.stopPropagation();
-      }
-
-      // Handle Selection
-      if (dataObj && type) {
-        this.selectObject(container, dataObj, type);
-      }
-
-      // Attach listener for move on container (globally tracks pointer)
-      container.on('globalpointermove', onMove);
-      // Attach listener for up on window (catches release anywhere including outside/holes)
-      window.addEventListener('pointerup', endDrag);
-      window.addEventListener('pointercancel', endDrag);
-    };
-
-    container.on('pointerdown', (e) => {
-      const isSelected = this.selectedObject && this.selectedObject.container === container;
-      if (isSelected) {
-        startDrag(e);
-      } else {
-        // Select it
-        if (dataObj && type) {
-          this.selectObject(container, dataObj, type);
-        }
-        if (e.stopPropagation) {
-          e.stopPropagation();
-        }
-      }
-    });
-
-    // Initial Drag (from UI spawn)
-    if (initialEventData) {
-      startDrag(initialEventData);
-    }
-  }
-
   private markAsEdited() {
     this.editorHasChanged = true;
     if (this.editingLevel) {
@@ -1882,15 +1771,30 @@ export class Game {
   }
 
   private selectObject(container: PIXI.Container, data: any, type: string) {
-    // Deselect previous
+    // Deselect previous (re-enable its event mode)
     if (this.selectedObject) {
+      this.selectedObject.container.eventMode = 'static';
       this.updateEditorOutline(this.selectedObject.container, this.selectedObject.type, this.selectedObject.data, EDITOR_OUTLINE_WIDTH_NORMAL, EDITOR_SELECTION_COLOR);
     }
 
     this.selectedObject = { container, data, type };
 
+    // Disable the selected object's event mode so gizmo receives events
+    container.eventMode = 'none';
+
     // Create visual feedback (Thick outline)
     this.updateEditorOutline(container, type, data, EDITOR_OUTLINE_WIDTH_FOCUSED, EDITOR_SELECTION_COLOR);
+
+    // Attach TransformGizmo
+    if (this.transformGizmo) {
+      this.transformGizmo.setTarget(
+        container,
+        data,
+        type,
+        () => this.onGizmoTransformChange(),
+        () => this.onGizmoTransformEnd()
+      );
+    }
 
     // Update Editor UI
     if (this.editorUI) {
@@ -1901,11 +1805,135 @@ export class Game {
 
   private deselectObject() {
     if (this.selectedObject) {
+      // Re-enable event mode for the previously selected object
+      this.selectedObject.container.eventMode = 'static';
       this.updateEditorOutline(this.selectedObject.container, this.selectedObject.type, this.selectedObject.data, EDITOR_OUTLINE_WIDTH_NORMAL, EDITOR_SELECTION_COLOR);
     }
     this.selectedObject = null;
+
+    // Clear TransformGizmo
+    if (this.transformGizmo) {
+      this.transformGizmo.clearTarget();
+    }
+
     if (this.editorUI) {
       this.editorUI.updateTools(false, false);
+    }
+  }
+
+  /**
+   * Called during gizmo transform (live updates)
+   */
+  private onGizmoTransformChange(): void {
+    if (!this.selectedObject) return;
+
+    const { container, data, type } = this.selectedObject;
+
+    // Update visual to match data changes
+    this.rebuildObjectVisual(container, data, type);
+
+    // Update outline to match new shape
+    this.updateEditorOutline(container, type, data, EDITOR_OUTLINE_WIDTH_FOCUSED, EDITOR_SELECTION_COLOR);
+  }
+
+  /**
+   * Called when gizmo transform ends (drag release)
+   */
+  private onGizmoTransformEnd(): void {
+    this.markAsEdited();
+  }
+
+  /**
+   * Rebuild the visual representation of an object after transform changes
+   */
+  private rebuildObjectVisual(container: PIXI.Container, data: any, type: string): void {
+    const scaleFactor = getScaleFactor();
+
+    // Clear existing children except outline
+    const outline = container.getChildByName('__editor_outline__');
+    container.removeChildren();
+
+    // If container is a Graphics object, clear its drawing context too
+    if (container instanceof PIXI.Graphics) {
+      container.clear();
+    }
+
+    // Rebuild based on type
+    let newVisual: PIXI.Container | PIXI.Graphics | null = null;
+
+    switch (type) {
+      case 'ball_blue':
+        newVisual = Ball.createVisual(0, 0, 'blue');
+        break;
+      case 'ball_pink':
+        newVisual = Ball.createVisual(0, 0, 'pink');
+        break;
+      case 'obstacle':
+        newVisual = Obstacle.createVisual(data);
+        break;
+      case 'falling':
+        newVisual = FallingObject.createVisual(data);
+        break;
+      case 'net':
+        newVisual = Net.createVisual(data);
+        break;
+      case 'ice':
+        newVisual = IceBlock.createVisual(data);
+        break;
+      case 'seesaw':
+        newVisual = Seesaw.createVisual(data);
+        break;
+      case 'conveyor':
+        newVisual = ConveyorBelt.createVisual(data);
+        break;
+      case 'button':
+        newVisual = Button.createVisual(data);
+        break;
+      case 'laser':
+        if (this.laserTexture) {
+          newVisual = Laser.createVisual(data, this.laserTexture);
+        }
+        break;
+    }
+
+    if (newVisual) {
+      // Reset the new visual's position/rotation since container handles that
+      newVisual.position.set(0, 0);
+      newVisual.rotation = 0;
+      newVisual.scale.set(1);
+
+      // If newVisual has children (like Net, Seesaw, Laser), add them directly
+      // Otherwise add the newVisual itself (like Graphics objects)
+      if (newVisual.children.length > 0) {
+        while (newVisual.children.length > 0) {
+          const child = newVisual.children[0];
+          newVisual.removeChild(child);
+          container.addChild(child);
+        }
+        newVisual.destroy();
+      } else {
+        // It's a Graphics object - add it directly
+        container.addChild(newVisual);
+      }
+
+      // Update container position/rotation from data
+      if (type === 'laser') {
+        const cx = (data.x1 + data.x2) / 2;
+        const cy = (data.y1 + data.y2) / 2;
+        container.position.set(cx * scaleFactor, cy * scaleFactor);
+        container.rotation = Math.atan2(data.y2 - data.y1, data.x2 - data.x1);
+      } else {
+        container.position.set(data.x * scaleFactor, data.y * scaleFactor);
+        if (data.angle !== undefined) {
+          container.rotation = (data.angle * Math.PI) / 180;
+        }
+      }
+      container.scale.set(scaleFactor);
+    }
+
+    // Re-add outline on top
+    if (outline) {
+      container.addChild(outline);
     }
   }
 
@@ -2015,7 +2043,7 @@ export class Game {
     }
   }
 
-  private setupEditorObject(visual: PIXI.Container, data: any, type: string, initialEventData?: any) {
+  private setupEditorObject(visual: PIXI.Container, data: any, type: string, initialSelect: boolean = false) {
     const scaleFactor = getScaleFactor();
 
     let posX = data.x;
@@ -2028,25 +2056,36 @@ export class Game {
     visual.position.set(posX * scaleFactor, posY * scaleFactor);
     visual.scale.set(scaleFactor);
 
+    // Set rotation for objects that have angle
+    if (data.angle !== undefined && type !== 'laser') {
+      visual.rotation = (data.angle * Math.PI) / 180;
+    } else if (type === 'laser') {
+      visual.rotation = Math.atan2(data.y2 - data.y1, data.x2 - data.x1);
+    }
+
     // Initial Outline (Thin)
     this.updateEditorOutline(visual, type, data, EDITOR_OUTLINE_WIDTH_NORMAL, EDITOR_SELECTION_COLOR);
 
-    this.makeDraggable(visual, (x, y) => {
-      if (type === 'laser') {
-        const dx = x - (data.x1 + data.x2) / 2;
-        const dy = y - (data.y1 + data.y2) / 2;
-        data.x1 += dx;
-        data.y1 += dy;
-        data.x2 += dx;
-        data.y2 += dy;
-      } else {
-        data.x = x;
-        data.y = y;
+    // Setup click-to-select and direct drag interaction
+    visual.eventMode = 'static';
+    visual.cursor = 'move';
+    visual.on('pointerdown', (e: PIXI.FederatedPointerEvent) => {
+      e.stopPropagation();
+      // Select the object first
+      this.selectObject(visual, data, type);
+      // Immediately trigger the gizmo's move handle with the same event
+      if (this.transformGizmo) {
+        this.transformGizmo.startMoveFromExternal(e);
       }
-    }, scaleFactor, data, type, initialEventData);
+    });
 
     this.gameContainer.addChild(visual);
     this.editorObjects.push({ container: visual, data, type });
+
+    // Auto-select newly created objects
+    if (initialSelect) {
+      this.selectObject(visual, data, type);
+    }
   }
 
   private copySelectedObject() {
@@ -2110,10 +2149,7 @@ export class Game {
     if (visual && list) {
       list.push(newData);
       this.markAsEdited();
-      this.setupEditorObject(visual, newData, type);
-
-      // Select new object
-      this.selectObject(visual, newData, type);
+      this.setupEditorObject(visual, newData, type, true); // Auto-select copied object
     }
   }
 
@@ -2323,10 +2359,7 @@ export class Game {
     if (visual && newObj && list) {
       list.push(newObj);
       this.markAsEdited();
-      this.setupEditorObject(visual, newObj, objTypeTag, initialEventData);
-
-      // Auto select
-      this.selectObject(visual, newObj, objTypeTag);
+      this.setupEditorObject(visual, newObj, objTypeTag, true); // Auto-select new objects
     }
 
   }
