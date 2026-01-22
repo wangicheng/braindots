@@ -113,21 +113,11 @@ export class EditorUI extends PIXI.Container {
   }
 
   private createToggle(x: number, y: number): void {
-    const width = scale(240);
-    const height = scale(40);
-    const radius = scale(20); // Max rounded corners
-
     this.toggleContainer = new PIXI.Container();
     this.toggleContainer.position.set(x, y);
     this.addChild(this.toggleContainer);
 
-    // Background
-    const bg = new PIXI.Graphics();
-    bg.roundRect(-width / 2, -height / 2, width, height, radius);
-    bg.fill(0xFFFFFF); // White background
-    this.toggleContainer.addChild(bg);
-
-    // We will redraw the "active" side on top
+    // Initial render
     this.updateToggleState();
 
     this.toggleContainer.eventMode = 'static';
@@ -165,15 +155,16 @@ export class EditorUI extends PIXI.Container {
     const h = scale(40);
     const r = scale(20);
 
-    // Base Background (White)
+    // Base Background (White with Gray Border)
     const bg = new PIXI.Graphics();
     bg.roundRect(-w / 2, -h / 2, w, h, r);
-    bg.fill(0xFFFFFF);
+    bg.fill({ color: 0xFFFFFF, alpha: 0.5 });
+    bg.stroke({ color: 0x555555, width: scale(1.5), alpha: 0.5 });
     this.toggleContainer.addChild(bg);
 
     // Active Highlight
     const highlight = new PIXI.Graphics();
-    highlight.fill(0x555555);
+    highlight.fill({ color: 0x555555, alpha: 0.8 });
 
     if (this.currentMode === 'edit') {
       // Left half active - Gray Background
