@@ -89,6 +89,7 @@ export class Obstacle {
         break;
       }
 
+
       case 'c_shape': {
         // Defined by 3 coordinates (points) determining an arc.
         if (points && points.length === 3 && thickness) {
@@ -125,8 +126,6 @@ export class Obstacle {
           const relA3 = normalize(angle3 - angle1);
 
           // Physics approximation with segments
-          const segments = 10;
-
           let sweep = 0;
           if (relA2 < relA3) {
             sweep = relA3;
@@ -134,6 +133,10 @@ export class Obstacle {
             sweep = -(2 * Math.PI - relA3);
           }
 
+          // Calculate segments based on arc length to maintain consistent precision
+          // Target approximately 15 pixels per segment or minimum 16 segments
+          const arcLength = Math.abs(sweep) * arcRadius;
+          const segments = Math.max(16, Math.ceil(arcLength / 15));
           const angleStep = sweep / segments;
 
           for (let i = 0; i < segments; i++) {
@@ -214,8 +217,15 @@ export class Obstacle {
           const cpX = 2 * p1.x - 0.5 * p0.x - 0.5 * p2.x;
           const cpY = 2 * p1.y - 0.5 * p0.y - 0.5 * p2.y;
 
-          // Physics approximation with segments
-          const segments = 10;
+          // Estimate curve length using control polygon chords
+          // Length approximates |P0-CP| + |CP-P2|
+          const len1 = Math.sqrt(Math.pow(cpX - p0.x, 2) + Math.pow(cpY - p0.y, 2));
+          const len2 = Math.sqrt(Math.pow(p2.x - cpX, 2) + Math.pow(p2.y - cpY, 2));
+          const estimatedLength = len1 + len2;
+
+          // Calculate segments based on length
+          // Target approximately 15 pixels per segment or minimum 16 segments
+          const segments = Math.max(16, Math.ceil(estimatedLength / 15));
           const step = 1 / segments;
 
           let prevX = p0.x;
