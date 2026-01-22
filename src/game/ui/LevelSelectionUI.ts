@@ -403,11 +403,7 @@ export class LevelSelectionUI extends PIXI.Container {
       avatar.cursor = 'pointer';
       avatar.on('pointertap', (e) => {
         e.stopPropagation();
-        const authorName = levelData.author || `User ${index + 1}`;
-        // Use levelData.authorId if available, otherwise mock one for the demo or use levelData.author
-        const authorId = levelData.authorId || `mock_user_${index}`;
-
-        this.showUserProfile(authorName, authorId, color);
+        this.showUserProfile(levelData, color);
       });
 
       container.addChild(avatar);
@@ -717,18 +713,19 @@ export class LevelSelectionUI extends PIXI.Container {
     }
   }
 
-  private showUserProfile(userName: string, userId: string, color: number): void {
+  private showUserProfile(levelData: LevelData, color: number): void {
     if (this.userProfileCard) {
       this.removeChild(this.userProfileCard);
       this.userProfileCard.destroy();
       this.userProfileCard = null;
     }
 
-    this.userProfileCard = new UserProfileCard(userName, userId, color,
+    this.userProfileCard = new UserProfileCard(levelData, color,
+      (w, h) => this.createLevelThumbnail(levelData, w, h),
       () => this.closeUserProfile(),
       (id) => {
         this.closeUserProfile();
-        this.setFilterAuthor(id, userName, color);
+        this.setFilterAuthor(id, levelData.author || '', color);
       }
     );
     this.addChild(this.userProfileCard);
