@@ -564,7 +564,7 @@ export class LevelSelectionUI extends PIXI.Container {
 
     // 5. Lasers
     if (levelData.lasers && this.laserTexture) {
-      levelData.lasers.forEach(config => container.addChild(Laser.createVisual(config, this.laserTexture!)));
+      levelData.lasers.forEach(config => container.addChild(Laser.createVisual(config, this.laserTexture!, 14)));
     }
 
     // 6. Seesaws

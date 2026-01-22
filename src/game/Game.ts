@@ -151,9 +151,9 @@ export class Game {
     });
 
     // Load assets
-    await PIXI.Assets.load('/object_ami.png');
-    await PIXI.Assets.load('/gear.png');
-    this.laserTexture = await PIXI.Assets.load('/laser.png');
+    await PIXI.Assets.load('/net.svg');
+    await PIXI.Assets.load('/gear.svg');
+    this.laserTexture = await PIXI.Assets.load('/laser.svg');
 
     console.log('Pixi initialized, adding canvas...');
     // Add canvas to DOM
@@ -1744,7 +1744,7 @@ export class Game {
     // Lasers
     if (data.lasers && this.laserTexture) {
       data.lasers.forEach(laser => {
-        const vis = Laser.createVisual(laser, this.laserTexture!);
+        const vis = Laser.createVisual(laser, this.laserTexture!, 14);
         this.setupEditorObject(vis, laser, 'laser');
       });
     }
@@ -1902,7 +1902,7 @@ export class Game {
         break;
       case 'laser':
         if (this.laserTexture) {
-          newVisual = Laser.createVisual(data, this.laserTexture);
+          newVisual = Laser.createVisual(data, this.laserTexture, 14);
         }
         break;
     }
@@ -2141,7 +2141,7 @@ export class Game {
           if (!this.editingLevel.lasers) this.editingLevel.lasers = [];
           list = this.editingLevel.lasers;
           if (this.laserTexture) {
-            visual = Laser.createVisual(newData, this.laserTexture);
+            visual = Laser.createVisual(newData, this.laserTexture, 14);
           }
           break;
         case 'seesaw':
@@ -2358,7 +2358,7 @@ export class Game {
           // Default to horizontal line centered at designX, Y
           newObj = { x1: designX - 100, y1: designY, x2: designX + 100, y2: designY };
           if (!this.laserTexture) return;
-          visual = Laser.createVisual(newObj, this.laserTexture);
+          visual = Laser.createVisual(newObj, this.laserTexture, 14);
           break;
         case 'seesaw':
           if (!this.editingLevel.seesaws) this.editingLevel.seesaws = [];

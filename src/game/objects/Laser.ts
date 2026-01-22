@@ -32,15 +32,13 @@ export class Laser {
     this.length = Math.sqrt(dx * dx + dy * dy);
     // Angle handled by createVisual
     const angle = Math.atan2(dy, dx);
-    this.laserHeight = texture.height;
+    // Use a fixed height for consistency, or derive from texture but clamp it
+    // Defaulting to 14 which is the designed height of the SVG
+    this.laserHeight = 14;
 
     // Create visuals
-    this.graphics = Laser.createVisual(config, texture);
+    this.graphics = Laser.createVisual(config, texture, this.laserHeight);
 
-    // We need to retrieve the sprite to animate it in update().
-    // The createVisual returns a container with the sprite as a child.
-    // Assumption: The sprite is the first or only child.
-    // Let's verify: createVisual adds sprite as child.
     this.sprite = this.graphics.children[0] as PIXI.TilingSprite;
 
     // --- Physics Setup (Sensor) ---
@@ -117,7 +115,7 @@ export class Laser {
     this.graphics.destroy({ children: true });
   }
 
-  static createVisual(config: LaserConfig, texture: PIXI.Texture): PIXI.Container {
+  static createVisual(config: LaserConfig, texture: PIXI.Texture, height: number): PIXI.Container {
     const { x1, y1, x2, y2 } = config;
 
     // Calculate length and angle of the laser segment
@@ -125,7 +123,7 @@ export class Laser {
     const dy = y2 - y1;
     const length = Math.sqrt(dx * dx + dy * dy);
     const angle = Math.atan2(dy, dx);
-    const laserHeight = texture.height;
+    const laserHeight = height;
 
     // Create container positioned at the start point
     const graphics = new PIXI.Container();
@@ -142,6 +140,13 @@ export class Laser {
       width: length,
       height: laserHeight,
     });
+
+    // Scale texture to match the desired height if mismatch
+    // (texture.height might be different if SVG loaded weirdly)
+    if (texture.height !== laserHeight) {
+      const scale = laserHeight / texture.height;
+      sprite.tileScale.set(scale, scale);
+    }
 
     // Center the sprite horizontally on the physics body position (middle)
     sprite.anchor.set(0.5, 0.5);

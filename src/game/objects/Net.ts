@@ -66,7 +66,7 @@ export class Net {
     }
 
     // Create tiling sprite for the net pattern
-    const texture = PIXI.Texture.from('/object_ami.png');
+    const texture = PIXI.Texture.from('/net.svg');
     const sprite = new PIXI.TilingSprite({
       texture,
       width: config.width,
@@ -90,7 +90,7 @@ export class Net {
     // Create border
     const border = new PIXI.Graphics();
     border.roundRect(-config.width / 2, -config.height / 2, config.width, config.height, radius);
-    border.stroke({ width: 2, color: 0x808080 }); // #808080 border
+    border.stroke({ width: 2, color: 0x808080, alpha: 0.8 }); // #808080 border
     graphics.addChild(border);
 
     return graphics;
