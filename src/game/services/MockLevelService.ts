@@ -181,7 +181,6 @@ export class MockLevelService {
     }
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    console.log('Level uploaded/updated:', level.id);
   }
 
   /**
@@ -198,7 +197,6 @@ export class MockLevelService {
       stored[index].isPublished = true;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
     }
-    console.log('Level published:', levelId);
   }
 
   private getStoredLevels(): LevelData[] {
@@ -250,9 +248,6 @@ export class MockLevelService {
     if (index >= 0) {
       stored.splice(index, 1);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-      console.log('Level deleted from storage:', levelId);
-    } else {
-      console.log('Marked non-stored level as deleted:', levelId);
     }
   }
 

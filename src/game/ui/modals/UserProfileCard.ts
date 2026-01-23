@@ -180,7 +180,6 @@ export class UserProfileCard extends PIXI.Container {
 
     // Sub-Card (Shadow + Background)
     const subCard = UIFactory.createCard(subCardWidth, subCardHeight, 0xFFFFFF);
-    // Note: createCard uses standard shadow (4,4). Original used (0,2). Standardization accepted.
     rightCol.addChild(subCard);
 
     const centerX = subCardWidth / 2;
@@ -234,9 +233,7 @@ export class UserProfileCard extends PIXI.Container {
 
     rightCol.addChild(actionBtn);
 
-    // Close Button (Relative to Sub-Card Right Top? Or Main Card?)
-    // User requested Right Side Elements in a card. Usually Close btn is global to the modal.
-    // Let's keep Close Button on the Main Card for better UX (outside the content flow).
+    // Close Button
     const closeBtn = new PIXI.Container();
     const closeSize = scale(40);
     const closeHit = new PIXI.Graphics();
@@ -356,10 +353,6 @@ export class UserProfileCard extends PIXI.Container {
       14 // Font size
     );
 
-    // Original anchor was centered (drawing at -w/2, -h/2).
-    // createButton draws at 0,0.
-    // We need to wrap it or adjust offset where it is used.
-    // Or just return it set to pivot center?
     btn.pivot.set(w / 2, h / 2);
 
     return btn;

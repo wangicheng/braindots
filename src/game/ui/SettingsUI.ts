@@ -28,7 +28,6 @@ export class SettingsUI extends PIXI.Container {
   private overlay: PIXI.Graphics;
   private card: PIXI.Container;
   private fileInputElement: HTMLInputElement | null = null;
-  // private avatarLoadId: number = 0; // Unused
 
   constructor(onClose: () => void) {
     super();
@@ -63,16 +62,6 @@ export class SettingsUI extends PIXI.Container {
 
     // 1. Overlay
     this.overlay.clear();
-    // Re-use logic or re-create? overlay is a member. 
-    // UIFactory creates a new one. Since 'overlay' is `readonly` or defined in constructor as member, we might just update it?
-    // The original code clears and redraws. 
-    // UIFactory.createOverlay returns a NEW Graphics. 
-    // We can just use the standard PIXI drawing here to avoid re-creating object if we want to keep the member.
-    // OR, we can update the member to be just a reference?
-    // Given 'overlay' is instantiated in constructor, let's keep it simple and just use drawing commands, 
-    // OR we can make a helper "drawOverlay(g)"?
-    // Actually, looking at the code, it clears and draws every refreshUI.
-    // Let's stick to standard PIXI for the member, BUT we can use UIFactory for 'Shadow' and 'Card' which are re-created or children cleared.
     this.overlay.rect(0, 0, canvasWidth, canvasHeight);
     this.overlay.fill({ color: 0x000000, alpha: 0.5 });
     this.overlay.eventMode = 'static';
@@ -140,9 +129,6 @@ export class SettingsUI extends PIXI.Container {
     const t = (key: TranslationKey) => LanguageManager.getInstance().t(key);
     // Header
     this.drawHeader(width, { title: t('profile.title'), showBack: true, onBack: () => this.setView('list') });
-
-    // Increment load ID to invalidate previous pending loads
-    // const currentLoadId = ++this.avatarLoadId; // Unused with UIFactory
 
     const profile = MockLevelService.getInstance().getUserProfile();
     const centerX = width / 2;
@@ -253,9 +239,6 @@ export class SettingsUI extends PIXI.Container {
 
     // Dynamic Language List
     const availableLangs = LanguageManager.getInstance().getAvailableLanguages();
-    // Sort to ensure consistent order, maybe English first or specific order?
-    // For now, sorting alphabetically by code or keeping registration order (which is usually predictable)
-    // Registration order in main.ts is: en, zh-TW, ru, ja
 
     const langs = availableLangs.map(code => ({
       code,
@@ -288,14 +271,6 @@ export class SettingsUI extends PIXI.Container {
         item.bg.roundRect(0, 0, bgWidth, itemHeight, radius);
         item.bg.stroke({ width: 2, color: 0x37A4E9 });
         item.bg.fill(0xF0F8FF);
-        // Note: createPill returns a NEW graphics. Here we are modifying an existing one (item.bg).
-        // So we can't easily swap it unless we remove and add. 
-        // But the original code modifies the existing graphics. 
-        // We will leave this one as manual modification to avoid complex object replacement logic in update loop.
-        // OR we can make createPill static helper that draws ON a graphics? No, factory usually creates.
-        // I will SKIP this block to avoid breaking the reference stability if item.bg is stored. 
-        // Actually, item is recreated in drawLanguageView every time? No, it's a loop.
-        // Let's look at `createListItem`. It creates the BG. We should refactor that.
 
         // Modify icon color using named reference
         item.icon.style.fill = '#37A4E9';

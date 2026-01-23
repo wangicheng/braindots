@@ -155,10 +155,8 @@ export class LevelSelectionUI extends PIXI.Container {
     // Filter Tag Component (Initially hidden/empty)
     this.filterFilterTagContainer = new PIXI.Container();
     // Position will be set in updateFilterTag or updateLayout, but let's init it here relative to sort buttons or right aligned
-    // Ideally it sits to the right of "Mine", or replaces the sort buttons?
-    // The requirement says "filter tag... new display method".
-    // I will place it to the right of the "Mine" button for now, or maybe float it.
-    // Let's stick to the previous location logic but refined.
+    // Filter Tag Component (Initially hidden/empty)
+    this.filterFilterTagContainer = new PIXI.Container();
     this.headerContainer.addChild(this.filterFilterTagContainer);
     this.updateFilterTag();
 
@@ -297,8 +295,8 @@ export class LevelSelectionUI extends PIXI.Container {
     container.addChild(hitArea);
 
     // Icon Text
+    // Icon Text
     const text = UIFactory.createIcon(iconChar, scale(60), '#555555');
-    // Original had stroke. Add it back?
     text.style.stroke = { color: '#555555', width: 0.5 };
 
     // Position
@@ -523,8 +521,8 @@ export class LevelSelectionUI extends PIXI.Container {
 
     container.addChild(avatar);
 
-    // 5. Status (Top Right)
-    // Placeholder circle removed as in original
+    container.addChild(avatar);
+
 
     // 6. Interaction
     container.eventMode = 'static';
@@ -667,9 +665,8 @@ export class LevelSelectionUI extends PIXI.Container {
     // Simple tween
     // Since we don't have a tween engine installed (probably), let's just slide using a ticker or CSS-like transition?
     // Pixi doesn't have built-in tween. 
-    // We can just snap for now, or use a simple ticker hook if passed.
-    // Let's implement a simple slide loop or just snap.
-    // User requested "Swipe ... can switch page". 
+    // Simple tween
+    // Pixi doesn't have built-in tween. 
     // Snapping is acceptable for MVP, smooth slide is better.
 
     // Manual rudimentary tween
@@ -800,8 +797,6 @@ export class LevelSelectionUI extends PIXI.Container {
   public setPen(penId: string): void {
     this.currentPenId = penId;
   }
-
-  // --- Logic for Sorting and Filtering ---
 
   // --- Logic for Sorting and Filtering ---
 
