@@ -25,9 +25,9 @@ export interface ObstacleConfig {
   height?: number;
   radius?: number; // For circle
   angle?: number; // Degrees
-  points?: Vec2[]; // For c_shape or triangle (3 coordinates)
-  thickness?: number; // For c_shape
-  cap?: 'round' | 'square'; // Defaults to 'round' for c_shape
+  points?: Vec2[]; // For c_shape, bezier, or triangle (3 coordinates)
+  thickness?: number; // For c_shape or bezier
+  cap?: 'round' | 'butt'; // Defaults to 'round' for c_shape or bezier
 }
 
 export interface NetConfig {
