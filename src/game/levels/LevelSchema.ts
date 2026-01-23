@@ -94,6 +94,8 @@ export interface LevelData {
   authorId?: string;
   createdAt?: number;
   likes?: number;
+  attempts?: number;
+  clears?: number;
   balls: {
     blue: BallConfig;
     pink: BallConfig;

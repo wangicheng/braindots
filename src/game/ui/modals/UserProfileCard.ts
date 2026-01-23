@@ -71,8 +71,11 @@ export class UserProfileCard extends PIXI.Container {
     const previewWidth = (cardWidth * 0.6) - padding;
     const previewHeight = previewWidth * (9 / 16); // Fixed 16:9 ratio
 
-    // Card Height is exactly Preview Height + Padding * 2
-    const cardHeight = previewHeight + (padding * 2);
+    // Stats area height (reduced for single line)
+    const statsHeight = scale(40);
+
+    // Card Height is Preview Height + Stats Height + Padding * 2
+    const cardHeight = previewHeight + statsHeight + (padding * 2);
 
     // 2. Card Container
     const card = new PIXI.Container();
@@ -127,6 +130,65 @@ export class UserProfileCard extends PIXI.Container {
     previewContainer.addChild(levelContent);
 
     card.addChild(previewContainer);
+
+    // 3.5 Level Stats (Below Preview)
+    const statsContainer = new PIXI.Container();
+    statsContainer.position.set(padding, padding + previewHeight + scale(15));
+    card.addChild(statsContainer);
+
+    const dateStr = this.levelData.createdAt
+      ? new Date(this.levelData.createdAt).toLocaleDateString()
+      : '-';
+
+    const attempts = this.levelData.attempts ?? 0;
+    const clears = this.levelData.clears ?? 0;
+
+    const statLabelStyle = new PIXI.TextStyle({
+      fontFamily: 'Arial',
+      fontSize: scale(16),
+      fill: '#888888',
+    });
+
+    const statValueStyle = new PIXI.TextStyle({
+      fontFamily: 'Arial',
+      fontSize: scale(16),
+      fontWeight: 'bold',
+      fill: '#555555',
+    });
+
+    // Row 1: Date
+    const dateLabel = new PIXI.Text({ text: 'Published: ', style: statLabelStyle });
+    const dateValue = new PIXI.Text({ text: dateStr, style: statValueStyle });
+    dateValue.x = dateLabel.width;
+
+    const dateRow = new PIXI.Container();
+    dateRow.addChild(dateLabel, dateValue);
+    statsContainer.addChild(dateRow);
+
+    // Row 2: Attempts & Clears
+
+    // Attempts
+    const attemptsLabel = new PIXI.Text({ text: 'Attempts: ', style: statLabelStyle });
+    const attemptsValue = new PIXI.Text({ text: attempts.toString(), style: statValueStyle });
+    attemptsValue.x = attemptsLabel.width;
+
+    const attemptsContainer = new PIXI.Container();
+    attemptsContainer.addChild(attemptsLabel, attemptsValue);
+    attemptsContainer.position.set(scale(180), 0);
+    statsContainer.addChild(attemptsContainer);
+
+    // Clears
+    const percentage = attempts > 0 ? Math.round((clears / attempts) * 100) : 0;
+    const clearsText = `${clears} (${percentage}%)`;
+
+    const clearsLabel = new PIXI.Text({ text: 'Clears: ', style: statLabelStyle });
+    const clearsValue = new PIXI.Text({ text: clearsText, style: statValueStyle });
+    clearsValue.x = clearsLabel.width;
+
+    const clearsContainer = new PIXI.Container();
+    clearsContainer.addChild(clearsLabel, clearsValue);
+    clearsContainer.position.set(scale(310), 0);
+    statsContainer.addChild(clearsContainer);
 
     // 4. Right Side Info Panel
     const rightPanelX = padding + previewWidth + scale(20);
@@ -241,7 +303,7 @@ export class UserProfileCard extends PIXI.Container {
 
     // --- Actions (Bottom of Right Panel) ---
     // Actions should align with the bottom of the visible area
-    const bottomY = previewHeight;
+    const bottomY = previewHeight + statsHeight;
 
     const gap = scale(15);
     const btnWidth = (rightPanelWidth - gap) / 2;

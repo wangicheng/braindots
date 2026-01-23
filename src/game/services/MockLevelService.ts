@@ -92,6 +92,8 @@ export class MockLevelService {
           authorId: authorObj.id,
           createdAt: this.startTimestamp + timeOffset,
           likes: Math.floor((Math.sin(index) + 1) * 500) + (this.likedLevelIds.has(level.id) ? 1 : 0),
+          attempts: Math.floor(Math.random() * 1000) + 50,
+          clears: Math.floor(Math.random() * 50),
           isPublished: this.publishedLevelIds.has(level.id) || true, // Default to published for everything else
           authorPassed: true,
           isLikedByCurrentUser: this.likedLevelIds.has(level.id)
@@ -117,6 +119,8 @@ export class MockLevelService {
         authorId: CURRENT_USER_ID,
         createdAt: Date.now(),
         likes: 0,
+        attempts: 0,
+        clears: 0,
         isPublished: this.publishedLevelIds.has('draft_level_01') || false,
         authorPassed: false,
         isLikedByCurrentUser: this.likedLevelIds.has('draft_level_01')
@@ -135,6 +139,8 @@ export class MockLevelService {
         authorId: CURRENT_USER_ID,
         createdAt: Date.now() - (i * 1000 * 60 * 60), // Decreasing time
         likes: i * 10,
+        attempts: i * 20 + 5,
+        clears: i * 5,
         isPublished: this.publishedLevelIds.has(id) || (i > 2), // Some published, some drafts
         authorPassed: i > 1,  // Some tested, some not
         isLikedByCurrentUser: this.likedLevelIds.has(id)
