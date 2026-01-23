@@ -11,7 +11,15 @@ import level7 from '../levels/level7.json';
 const STORAGE_KEY = 'opendots_custom_levels';
 const LIKES_KEY = 'opendots_user_likes';
 const DELETED_KEY = 'opendots_deleted_levels';
+const PROFILE_KEY = 'opendots_user_profile';
 export const CURRENT_USER_ID = 'user_me';
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  avatarColor: number;
+  avatarUrl?: string;
+}
 
 export class MockLevelService {
   private static instance: MockLevelService;
@@ -40,6 +48,13 @@ export class MockLevelService {
   private constructor() {
     this.loadLikes();
     this.loadDeleted();
+
+    // Ensure "Me" is replaced with actual profile name
+    const profile = this.getUserProfile();
+    const meIndex = this.authors.findIndex(a => a.id === CURRENT_USER_ID);
+    if (meIndex >= 0) {
+      this.authors[meIndex].name = profile.name;
+    }
   }
 
   public static getInstance(): MockLevelService {
@@ -98,7 +113,7 @@ export class MockLevelService {
       draftLevel = {
         ...this.builtinLevels[0],
         id: 'draft_level_01',
-        author: 'Me',
+        author: this.getUserProfile().name,
         authorId: CURRENT_USER_ID,
         createdAt: Date.now(),
         likes: 0,
@@ -110,12 +125,13 @@ export class MockLevelService {
 
     // Add multiple mock levels for the current user to test the 6-item layout
     const userLevels: LevelData[] = [];
+    const profileName = this.getUserProfile().name;
     for (let i = 1; i <= 5; i++) {
       const id = `mock_user_level_${i}`;
       userLevels.push({
         ...this.builtinLevels[i % this.builtinLevels.length],
         id: id,
-        author: 'Me',
+        author: profileName,
         authorId: CURRENT_USER_ID,
         createdAt: Date.now() - (i * 1000 * 60 * 60), // Decreasing time
         likes: i * 10,
@@ -246,5 +262,52 @@ export class MockLevelService {
     } catch (e) {
       console.error('Failed to parse deleted levels', e);
     }
+  }
+
+  public getUserProfile(): UserProfile {
+    try {
+      const item = localStorage.getItem(PROFILE_KEY);
+      if (item) {
+        return JSON.parse(item);
+      }
+    } catch (e) {
+      console.error('Failed to parse user profile', e);
+    }
+
+    // Default Profile
+    return {
+      id: CURRENT_USER_ID,
+      name: 'Player',
+      avatarColor: 0x4ECDC4 // Default Teal
+    };
+  }
+
+  public updateUserProfile(data: Partial<UserProfile>): UserProfile {
+    const current = this.getUserProfile();
+    const updated = { ...current, ...data };
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(updated));
+
+    // Also update hardcoded authors list if needed
+    const meIndex = this.authors.findIndex(a => a.id === CURRENT_USER_ID);
+    if (meIndex >= 0) {
+      this.authors[meIndex].name = updated.name;
+    }
+
+    // Update author name in all stored levels owned by current user
+    if (data.name) {
+      const stored = this.getStoredLevels();
+      let changed = false;
+      stored.forEach(level => {
+        if (level.authorId === CURRENT_USER_ID) {
+          level.author = updated.name;
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+      }
+    }
+
+    return updated;
   }
 }

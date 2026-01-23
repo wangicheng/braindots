@@ -12,6 +12,7 @@ import { Seesaw } from '../objects/Seesaw';
 import { ConveyorBelt } from '../objects/ConveyorBelt';
 import { Button } from '../objects/Button';
 import { PenSelectionUI } from './PenSelectionUI';
+import { SettingsUI } from './SettingsUI';
 import { type Pen } from '../data/PenData';
 import { UserProfileCard } from './modals/UserProfileCard';
 import { CURRENT_USER_ID, MockLevelService } from '../services/MockLevelService';
@@ -32,6 +33,7 @@ export class LevelSelectionUI extends PIXI.Container {
   private scrollTweenId: number = 0;
 
   private penSelectionUI: PenSelectionUI | null = null;
+  private settingsUI: SettingsUI | null = null;
   private userProfileCard: UserProfileCard | null = null;
   private onPenSelect?: (pen: Pen) => void;
   private currentPenId: string = 'pen_default';
@@ -152,6 +154,7 @@ export class LevelSelectionUI extends PIXI.Container {
     const listBtn = this.createHeaderButton('\uF479');
     const listX = canvasWidth - scale(20) - btnSize;
     listBtn.position.set(listX, btnY);
+    listBtn.on('pointertap', () => this.showSettings());
     this.headerContainer.addChild(listBtn);
 
     // Pen Icon (Left of List)
@@ -353,7 +356,7 @@ export class LevelSelectionUI extends PIXI.Container {
     }
   }
 
-  private createLevelCard(index: number, levelData: LevelData, width: number, height: number): PIXI.Container {
+  private createLevelCard(_index: number, levelData: LevelData, width: number, height: number): PIXI.Container {
     const container = new PIXI.Container();
 
     // 1. Shadow (Rect with Blur)
@@ -494,7 +497,7 @@ export class LevelSelectionUI extends PIXI.Container {
 
     // Mocking a user avatar with a colored circle
     const avatarRadius = scale(25);
-    const avatar = new PIXI.Graphics();
+    const avatar = new PIXI.Container(); // Changed to Container to support Sprite
     const colors = [0xFF6B6B, 0x4ECDC4, 0x45B7D1, 0xFFBE76, 0xFF7979, 0xBADC58];
     // Hash authorId to get consistent color
     const authorKey = levelData.authorId || levelData.author || 'unknown';
@@ -503,11 +506,53 @@ export class LevelSelectionUI extends PIXI.Container {
       hash = authorKey.charCodeAt(i) + ((hash << 5) - hash);
     }
     const colorIndex = Math.abs(hash) % colors.length;
-    const color = colors[colorIndex];
+    let color = colors[colorIndex]; // Default color
 
-    avatar.circle(0, 0, avatarRadius);
-    avatar.fill(color);
-    avatar.stroke({ width: scale(3), color: 0xFFFFFF });
+    // Check if it's CURRENT USER and use their profile
+    if (levelData.authorId === CURRENT_USER_ID) {
+      const profile = MockLevelService.getInstance().getUserProfile();
+      color = profile.avatarColor; // Override color
+
+      if (profile.avatarUrl) {
+        PIXI.Assets.load(profile.avatarUrl).then((texture) => {
+          if (avatar.destroyed) return;
+          const sprite = new PIXI.Sprite(texture);
+          // Aspect Fill logic for small circle
+          const aspect = sprite.width / sprite.height;
+          if (aspect > 1) {
+            sprite.height = avatarRadius * 2;
+            sprite.width = sprite.height * aspect;
+          } else {
+            sprite.width = avatarRadius * 2;
+            sprite.height = sprite.width / aspect;
+          }
+          sprite.anchor.set(0.5);
+
+          const mask = new PIXI.Graphics();
+          mask.circle(0, 0, avatarRadius);
+          mask.fill(0xFFFFFF);
+          sprite.mask = mask;
+
+          avatar.addChild(mask);
+          avatar.addChild(sprite);
+
+          // Remove fallback graphic if exists (though we are appending, so maybe just don't add fallback if we have url? 
+          // Since load is async, we need a placeholder first.
+          // Let's just overlay the sprite on top of the base circle
+        });
+      }
+    }
+
+    const baseCircle = new PIXI.Graphics();
+    baseCircle.circle(0, 0, avatarRadius);
+    // If we have a custom avatar, the background should be white to handle transparency
+    if (levelData.authorId === CURRENT_USER_ID && MockLevelService.getInstance().getUserProfile().avatarUrl) {
+      baseCircle.fill(0xFFFFFF);
+    } else {
+      baseCircle.fill(color);
+    }
+    baseCircle.stroke({ width: scale(3), color: 0xFFFFFF });
+    avatar.addChildAt(baseCircle, 0); // Background/Fallback
 
     // Position to slightly protrude from the corner (center closer to the corner)
     avatar.position.set(width - scale(4), height - scale(4));
@@ -613,7 +658,7 @@ export class LevelSelectionUI extends PIXI.Container {
     this.eventMode = 'static';
 
     this.on('pointerdown', (e) => {
-      if (this.penSelectionUI || this.userProfileCard) return;
+      if (this.penSelectionUI || this.userProfileCard || this.settingsUI) return;
 
       // Prevent dragging if clicking in header area
       const headerHeight = this.getHeaderHeight();
@@ -720,6 +765,41 @@ export class LevelSelectionUI extends PIXI.Container {
       this.removeChild(this.penSelectionUI);
       this.penSelectionUI.destroy();
       this.penSelectionUI = null;
+    }
+  }
+
+  private showSettings(): void {
+    if (this.settingsUI) {
+      this.removeChild(this.settingsUI);
+      this.settingsUI.destroy();
+      this.settingsUI = null;
+    }
+
+    this.settingsUI = new SettingsUI(() => this.closeSettings());
+    this.settingsUI.zIndex = 2000;
+
+    // Listen for profile updates to refresh the background immediately
+    this.settingsUI.on('profileUpdate', () => {
+      MockLevelService.getInstance().getLevelList().then(levels => {
+        this.levels = levels;
+        this.refreshVisibleLevels();
+      });
+    });
+
+    this.addChild(this.settingsUI);
+  }
+
+  private closeSettings(): void {
+    if (this.settingsUI) {
+      this.removeChild(this.settingsUI);
+      this.settingsUI.destroy();
+      this.settingsUI = null;
+
+      // Refresh to update avatar and name
+      MockLevelService.getInstance().getLevelList().then(levels => {
+        this.levels = levels;
+        this.refreshVisibleLevels();
+      });
     }
   }
 

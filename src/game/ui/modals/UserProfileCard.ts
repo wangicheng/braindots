@@ -2,7 +2,7 @@
 import * as PIXI from 'pixi.js';
 import { getCanvasWidth, getCanvasHeight, scale } from '../../config';
 import type { LevelData } from '../../levels/LevelSchema';
-import { CURRENT_USER_ID } from '../../services/MockLevelService';
+import { CURRENT_USER_ID, MockLevelService } from '../../services/MockLevelService';
 import { ConfirmDialog } from './ConfirmDialog';
 
 export class UserProfileCard extends PIXI.Container {
@@ -142,25 +142,84 @@ export class UserProfileCard extends PIXI.Container {
     const topMargin = 0;
 
     // Avatar
-    const avatar = new PIXI.Graphics();
-    avatar.circle(0, 0, avatarRadius);
-    avatar.fill(this.userColor);
-    avatar.stroke({ width: scale(4), color: 0xE0E0E0 });
+    const avatar = new PIXI.Container();
     avatar.position.set(centerX, topMargin + avatarRadius);
     rightPanel.addChild(avatar);
 
+    let profileColor = this.userColor;
+    let profileUrl: string | undefined;
+
+    if (this.levelData.authorId === CURRENT_USER_ID) {
+      const profile = MockLevelService.getInstance().getUserProfile();
+      profileColor = profile.avatarColor;
+      profileUrl = profile.avatarUrl;
+    }
+
+    if (profileUrl) {
+      PIXI.Assets.load(profileUrl).then((texture) => {
+        if (avatar.destroyed) return;
+        const sprite = new PIXI.Sprite(texture);
+        const aspect = sprite.width / sprite.height;
+        if (aspect > 1) {
+          sprite.height = avatarRadius * 2;
+          sprite.width = sprite.height * aspect;
+        } else {
+          sprite.width = avatarRadius * 2;
+          sprite.height = sprite.width / aspect;
+        }
+        sprite.anchor.set(0.5);
+
+        const mask = new PIXI.Graphics();
+        mask.circle(0, 0, avatarRadius);
+        mask.fill(0xFFFFFF);
+        sprite.mask = mask;
+
+        avatar.addChild(mask);
+        avatar.addChild(sprite);
+      });
+    }
+
+    const baseCircle = new PIXI.Graphics();
+    baseCircle.circle(0, 0, avatarRadius);
+    // If we have an avatar URL, use white background to support transparency
+    if (profileUrl) {
+      baseCircle.fill(0xFFFFFF);
+    } else {
+      baseCircle.fill(profileColor);
+    }
+    baseCircle.stroke({ width: scale(4), color: 0xE0E0E0 });
+    avatar.addChildAt(baseCircle, 0);
+
     // Name
-    const nameText = new PIXI.Text({
-      text: this.levelData.author || 'Unknown',
-      style: {
-        fontFamily: 'Arial',
-        fontSize: scale(26),
-        fontWeight: 'bold',
-        fill: '#555555',
-        align: 'center',
-        wordWrap: true,
-        wordWrapWidth: rightPanelWidth - scale(20)
+    // Name
+    const nameStyle = new PIXI.TextStyle({
+      fontFamily: 'Arial',
+      fontSize: scale(26),
+      fontWeight: 'bold',
+      fill: '#555555',
+      align: 'center',
+    });
+
+    let nameString = this.levelData.author || 'Unknown';
+    const maxNameWidth = rightPanelWidth - scale(20);
+
+    const measureText = new PIXI.Text({ text: nameString, style: nameStyle });
+    if (measureText.width > maxNameWidth) {
+      let tempStr = nameString;
+      while (tempStr.length > 0) {
+        tempStr = tempStr.slice(0, -1);
+        measureText.text = tempStr + '...';
+        if (measureText.width <= maxNameWidth) {
+          nameString = tempStr + '...';
+          break;
+        }
       }
+    }
+    measureText.destroy();
+
+    const nameText = new PIXI.Text({
+      text: nameString,
+      style: nameStyle
     });
     nameText.anchor.set(0.5, 0);
     nameText.position.set(centerX, topMargin + (avatarRadius * 2) + scale(10));
