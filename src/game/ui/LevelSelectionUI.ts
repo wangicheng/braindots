@@ -14,7 +14,7 @@ import { Button } from '../objects/Button';
 import { PenSelectionUI } from './PenSelectionUI';
 import { type Pen } from '../data/PenData';
 import { UserProfileCard } from './modals/UserProfileCard';
-import { CURRENT_USER_ID } from '../services/MockLevelService';
+import { CURRENT_USER_ID, MockLevelService } from '../services/MockLevelService';
 
 export class LevelSelectionUI extends PIXI.Container {
   private levels: LevelData[];
@@ -726,6 +726,10 @@ export class LevelSelectionUI extends PIXI.Container {
       (id) => {
         this.closeUserProfile();
         this.setFilterAuthor(id, levelData.author || '', color);
+      },
+      () => {
+        MockLevelService.getInstance().toggleLike(levelData.id);
+        this.setupGrid();
       }
     );
     this.addChild(this.userProfileCard);

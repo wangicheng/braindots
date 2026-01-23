@@ -9,6 +9,7 @@ import level7 from '../levels/level7.json';
 
 // Local storage key for custom levels
 const STORAGE_KEY = 'opendots_custom_levels';
+const LIKES_KEY = 'opendots_user_likes';
 export const CURRENT_USER_ID = 'user_me';
 
 export class MockLevelService {
@@ -23,6 +24,7 @@ export class MockLevelService {
     { name: 'Me', id: CURRENT_USER_ID }
   ];
   private publishedLevelIds: Set<string> = new Set();
+  private likedLevelIds: Set<string> = new Set();
   private builtinLevels: LevelData[] = [
     level1 as unknown as LevelData,
     level2 as unknown as LevelData,
@@ -33,7 +35,9 @@ export class MockLevelService {
     level7 as unknown as LevelData
   ];
 
-  private constructor() { }
+  private constructor() {
+    this.loadLikes();
+  }
 
   public static getInstance(): MockLevelService {
     if (!MockLevelService.instance) {
@@ -69,9 +73,10 @@ export class MockLevelService {
           author: authorObj.name,
           authorId: authorObj.id,
           createdAt: this.startTimestamp + timeOffset,
-          likes: Math.floor((Math.sin(index) + 1) * 500), // 0 to 1000
+          likes: Math.floor((Math.sin(index) + 1) * 500) + (this.likedLevelIds.has(level.id) ? 1 : 0),
           isPublished: this.publishedLevelIds.has(level.id) || true, // Default to published for everything else
-          authorPassed: true
+          authorPassed: true,
+          isLikedByCurrentUser: this.likedLevelIds.has(level.id)
         };
       }
       return level;
@@ -95,7 +100,8 @@ export class MockLevelService {
         createdAt: Date.now(),
         likes: 0,
         isPublished: this.publishedLevelIds.has('draft_level_01') || false,
-        authorPassed: false
+        authorPassed: false,
+        isLikedByCurrentUser: this.likedLevelIds.has('draft_level_01')
       };
     }
 
@@ -111,7 +117,8 @@ export class MockLevelService {
         createdAt: Date.now() - (i * 1000 * 60 * 60), // Decreasing time
         likes: i * 10,
         isPublished: this.publishedLevelIds.has(id) || (i > 2), // Some published, some drafts
-        authorPassed: i > 1  // Some tested, some not
+        authorPassed: i > 1,  // Some tested, some not
+        isLikedByCurrentUser: this.likedLevelIds.has(id)
       });
     }
 
@@ -176,5 +183,31 @@ export class MockLevelService {
       console.error('Failed to parse stored levels', e);
       return [];
     }
+  }
+
+  private loadLikes(): void {
+    try {
+      const item = localStorage.getItem(LIKES_KEY);
+      if (item) {
+        const ids = JSON.parse(item);
+        if (Array.isArray(ids)) {
+          ids.forEach(id => this.likedLevelIds.add(id));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse likes', e);
+    }
+  }
+
+  public async toggleLike(levelId: string): Promise<boolean> {
+    // No async needed strictly but good to keep interface uniform
+    const isLiked = this.likedLevelIds.has(levelId);
+    if (isLiked) {
+      this.likedLevelIds.delete(levelId);
+    } else {
+      this.likedLevelIds.add(levelId);
+    }
+    localStorage.setItem(LIKES_KEY, JSON.stringify(Array.from(this.likedLevelIds)));
+    return !isLiked;
   }
 }

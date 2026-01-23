@@ -108,4 +108,5 @@ export interface LevelData {
   buttons?: ButtonConfig[];
   isPublished?: boolean;
   authorPassed?: boolean;
+  isLikedByCurrentUser?: boolean;
 }

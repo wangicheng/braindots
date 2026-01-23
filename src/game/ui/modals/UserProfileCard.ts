@@ -6,6 +6,7 @@ import type { LevelData } from '../../levels/LevelSchema';
 export class UserProfileCard extends PIXI.Container {
   private onCloseCallback: () => void;
   private onViewLevelsCallback: (userId: string) => void;
+  private onLikeToggleCallback?: () => void;
   private levelData: LevelData;
   private userColor: number;
   private getThumbnail: (width: number, height: number) => PIXI.Container;
@@ -15,7 +16,8 @@ export class UserProfileCard extends PIXI.Container {
     userColor: number,
     getThumbnail: (width: number, height: number) => PIXI.Container,
     onClose: () => void,
-    onViewLevels: (userId: string) => void
+    onViewLevels: (userId: string) => void,
+    onLikeToggle?: () => void
   ) {
     super();
     this.levelData = levelData;
@@ -23,6 +25,7 @@ export class UserProfileCard extends PIXI.Container {
     this.getThumbnail = getThumbnail;
     this.onCloseCallback = onClose;
     this.onViewLevelsCallback = onViewLevels;
+    this.onLikeToggleCallback = onLikeToggle;
 
     this.refreshUI();
 
@@ -278,14 +281,13 @@ export class UserProfileCard extends PIXI.Container {
     // Interaction
     container.eventMode = 'static';
     container.cursor = 'pointer';
-    let liked = false;
 
-    container.on('pointertap', () => {
-      liked = !liked;
-      const newCount = liked ? count + 1 : count;
+    let liked = !!this.levelData.isLikedByCurrentUser;
+    const baseCount = liked ? (initialLikes - 1) : initialLikes;
 
-      // Update UI
-      countText.text = newCount.toString();
+    const updateVisuals = () => {
+      const currentCount = baseCount + (liked ? 1 : 0);
+      countText.text = currentCount.toString();
       updateLayout();
 
       if (liked) {
@@ -302,6 +304,22 @@ export class UserProfileCard extends PIXI.Container {
         icon.style.fill = '#FF6B6B';
         countText.style.fill = '#FF6B6B';
       }
+    };
+
+    // Set initial visual state
+    updateVisuals();
+
+    container.on('pointertap', () => {
+      liked = !liked;
+
+      // Update Data
+      this.levelData.isLikedByCurrentUser = liked;
+      this.levelData.likes = baseCount + (liked ? 1 : 0);
+
+      if (this.onLikeToggleCallback) this.onLikeToggleCallback();
+
+      // Update UI
+      updateVisuals();
     });
 
     return container;
