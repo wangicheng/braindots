@@ -4,6 +4,7 @@ export const ru = {
   'settings.profile': 'Профиль',
   'settings.language': 'Язык',
   'settings.close': 'Закрыть',
+  'settings.github': 'GitHub',
   'profile.title': 'Ред. профиль',
   'profile.name': 'Имя',
   'profile.upload': 'Нажмите для загрузки',

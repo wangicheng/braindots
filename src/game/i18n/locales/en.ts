@@ -4,6 +4,7 @@ export const en = {
   'settings.profile': 'Profile',
   'settings.language': 'Language',
   'settings.close': 'Close',
+  'settings.github': 'GitHub',
   'profile.title': 'Edit Profile',
   'profile.name': 'Name',
   'profile.upload': 'Tap to upload image',

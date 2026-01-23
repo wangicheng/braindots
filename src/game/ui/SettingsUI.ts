@@ -107,6 +107,7 @@ export class SettingsUI extends PIXI.Container {
     const items = [
       { label: t('settings.profile'), onClick: () => this.setView('profile'), icon: '\uF4E1' }, // person-fill
       { label: t('settings.language'), onClick: () => this.setView('language'), icon: '\uF658' }, // globe
+      { label: t('settings.github'), onClick: () => { window.open('https://github.com/wangicheng/opendots', '_blank'); }, icon: '\uF3ED' }, // github
       // Add more settings here later, e.g. Sound, About
     ];
 

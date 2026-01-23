@@ -4,6 +4,7 @@ export const zhTW = {
   'settings.profile': '個人檔案',
   'settings.language': '語言',
   'settings.close': '關閉',
+  'settings.github': 'GitHub',
   'profile.title': '編輯檔案',
   'profile.name': '名稱',
   'profile.upload': '點擊上傳圖片',
