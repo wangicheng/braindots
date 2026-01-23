@@ -2,11 +2,15 @@
 import * as PIXI from 'pixi.js';
 import { getCanvasWidth, getCanvasHeight, scale } from '../../config';
 import type { LevelData } from '../../levels/LevelSchema';
+import { CURRENT_USER_ID } from '../../services/MockLevelService';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export class UserProfileCard extends PIXI.Container {
   private onCloseCallback: () => void;
   private onViewLevelsCallback: (userId: string) => void;
   private onLikeToggleCallback?: () => void;
+  private onDeleteCallback?: (levelId: string) => void;
+  private allowDelete: boolean;
   private levelData: LevelData;
   private userColor: number;
   private getThumbnail: (width: number, height: number) => PIXI.Container;
@@ -17,7 +21,9 @@ export class UserProfileCard extends PIXI.Container {
     getThumbnail: (width: number, height: number) => PIXI.Container,
     onClose: () => void,
     onViewLevels: (userId: string) => void,
-    onLikeToggle?: () => void
+    onLikeToggle?: () => void,
+    onDelete?: (levelId: string) => void,
+    allowDelete: boolean = false
   ) {
     super();
     this.levelData = levelData;
@@ -26,6 +32,8 @@ export class UserProfileCard extends PIXI.Container {
     this.onCloseCallback = onClose;
     this.onViewLevelsCallback = onViewLevels;
     this.onLikeToggleCallback = onLikeToggle;
+    this.onDeleteCallback = onDelete;
+    this.allowDelete = allowDelete;
 
     this.refreshUI();
 
@@ -179,12 +187,18 @@ export class UserProfileCard extends PIXI.Container {
     const gap = scale(15);
     const btnWidth = (rightPanelWidth - gap) / 2;
 
-    // View Levels Button (Bottom Right of Panel)
-    const viewBtn = this.createViewLevelsButton(btnWidth);
-    // Helper draws `roundRect(-w, 0, w, h)`, so origin is Top-Right corner.
-    // To align bottom of button with bottomY, we need Y = bottomY - h.
-    viewBtn.position.set(rightPanelWidth, bottomY - scale(36));
-    rightPanel.addChild(viewBtn);
+    // View Levels Button OR Delete Button (Bottom Right of Panel)
+    if (this.levelData.authorId === CURRENT_USER_ID && this.allowDelete) {
+      // Only show Delete if it is my level AND we are in "Mine" mode (allowDelete=true)
+      const deleteBtn = this.createDeleteButton(btnWidth);
+      deleteBtn.position.set(rightPanelWidth, bottomY - scale(36));
+      rightPanel.addChild(deleteBtn);
+    } else {
+      // Show View Levels Button (Default for others, or for Me in Latest/Popular view)
+      const viewBtn = this.createViewLevelsButton(btnWidth);
+      viewBtn.position.set(rightPanelWidth, bottomY - scale(36));
+      rightPanel.addChild(viewBtn);
+    }
 
     // Like Button (Bottom Left of Panel)
     const likeBtn = this.createLikeButton(this.levelData.likes || 0, btnWidth);
@@ -353,6 +367,58 @@ export class UserProfileCard extends PIXI.Container {
     container.on('pointertap', () => {
       if (this.levelData.authorId) {
         this.onViewLevelsCallback(this.levelData.authorId);
+      }
+    });
+
+    return container;
+  }
+
+  private createDeleteButton(width: number): PIXI.Container {
+    const w = width;
+    const h = scale(36);
+    const container = new PIXI.Container();
+
+    const bg = new PIXI.Graphics();
+    bg.roundRect(-w, 0, w, h, h / 2);
+    bg.stroke({ width: 1, color: 0xFF6B6B }); // Red outline
+    bg.fill(0xFFFFFF);
+    container.addChild(bg);
+
+    const text = new PIXI.Text({
+      text: 'Delete',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: scale(14),
+        fill: '#FF6B6B',
+        fontWeight: 'bold'
+      }
+    });
+    text.anchor.set(0.5);
+    text.position.set(-w / 2, h / 2);
+    container.addChild(text);
+
+    container.eventMode = 'static';
+    container.cursor = 'pointer';
+
+    container.on('pointertap', () => {
+      if (this.onDeleteCallback) {
+        const dialog = new ConfirmDialog(
+          'Are you sure you want to delete this level?\nThis cannot be undone.',
+          () => {
+            if (this.onDeleteCallback) this.onDeleteCallback(this.levelData.id);
+            this.removeChild(dialog);
+            dialog.destroy();
+          },
+          () => {
+            this.removeChild(dialog);
+            dialog.destroy();
+          },
+          {
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+          }
+        );
+        this.addChild(dialog);
       }
     });
 

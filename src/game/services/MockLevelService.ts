@@ -10,6 +10,7 @@ import level7 from '../levels/level7.json';
 // Local storage key for custom levels
 const STORAGE_KEY = 'opendots_custom_levels';
 const LIKES_KEY = 'opendots_user_likes';
+const DELETED_KEY = 'opendots_deleted_levels';
 export const CURRENT_USER_ID = 'user_me';
 
 export class MockLevelService {
@@ -25,6 +26,7 @@ export class MockLevelService {
   ];
   private publishedLevelIds: Set<string> = new Set();
   private likedLevelIds: Set<string> = new Set();
+  private deletedLevelIds: Set<string> = new Set();
   private builtinLevels: LevelData[] = [
     level1 as unknown as LevelData,
     level2 as unknown as LevelData,
@@ -37,6 +39,7 @@ export class MockLevelService {
 
   private constructor() {
     this.loadLikes();
+    this.loadDeleted();
   }
 
   public static getInstance(): MockLevelService {
@@ -126,7 +129,8 @@ export class MockLevelService {
     const filteredList = list.filter(l => l.id !== 'draft_level_01');
 
     // Insert draftLevel and userLevels at the beginning
-    return [draftLevel, ...userLevels, ...filteredList];
+    const final = [draftLevel, ...userLevels, ...filteredList];
+    return final.filter(l => !this.deletedLevelIds.has(l.id));
   }
 
   /**
@@ -209,5 +213,38 @@ export class MockLevelService {
     }
     localStorage.setItem(LIKES_KEY, JSON.stringify(Array.from(this.likedLevelIds)));
     return !isLiked;
+  }
+
+  public async deleteLevel(levelId: string): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const stored = this.getStoredLevels();
+    const index = stored.findIndex(l => l.id === levelId);
+
+    // Always track as deleted even if not in storage (for mock built-ins)
+    this.deletedLevelIds.add(levelId);
+    localStorage.setItem(DELETED_KEY, JSON.stringify(Array.from(this.deletedLevelIds)));
+
+    if (index >= 0) {
+      stored.splice(index, 1);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+      console.log('Level deleted from storage:', levelId);
+    } else {
+      console.log('Marked non-stored level as deleted:', levelId);
+    }
+  }
+
+  private loadDeleted(): void {
+    try {
+      const item = localStorage.getItem(DELETED_KEY);
+      if (item) {
+        const ids = JSON.parse(item);
+        if (Array.isArray(ids)) {
+          ids.forEach(id => this.deletedLevelIds.add(id));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse deleted levels', e);
+    }
   }
 }

@@ -382,32 +382,7 @@ export class LevelSelectionUI extends PIXI.Container {
     container.addChild(mask);
     container.addChild(thumbnail);
 
-    // Designer Avatar (Bottom Right)
-    // Only show avatar if NOT viewing "My Levels" (filtering by current user)
-    if (this.filterAuthorId !== CURRENT_USER_ID) {
-      // Mocking a user avatar with a colored circle
-      const avatarRadius = scale(25);
-      const avatar = new PIXI.Graphics();
-      const colors = [0xFF6B6B, 0x4ECDC4, 0x45B7D1, 0xFFBE76, 0xFF7979, 0xBADC58];
-      const color = colors[index % colors.length];
-
-      avatar.circle(0, 0, avatarRadius);
-      avatar.fill(color);
-      avatar.stroke({ width: scale(3), color: 0xFFFFFF });
-
-      // Position to slightly protrude from the corner (center closer to the corner)
-      avatar.position.set(width - scale(4), height - scale(4));
-
-      // Interaction for avatar
-      avatar.eventMode = 'static';
-      avatar.cursor = 'pointer';
-      avatar.on('pointertap', (e) => {
-        e.stopPropagation();
-        this.showUserProfile(levelData, color);
-      });
-
-      container.addChild(avatar);
-    }
+    // Designer Avatar rendering moved to the end to ensure it's on top of any status overlay
 
     // 4.5 Published/Draft Status Overlay
     if (levelData.authorId === CURRENT_USER_ID && levelData.isPublished === false) {
@@ -509,8 +484,43 @@ export class LevelSelectionUI extends PIXI.Container {
       likesContainer.addChild(numText);
 
       likesContainer.position.set(scale(12), scale(12));
+      likesContainer.position.set(scale(12), scale(12));
       container.addChild(likesContainer);
     }
+
+    // Designer Avatar (Bottom Right)
+    // Always show an avatar to allow access to User Profile Card (Delete/Like)
+    // Placed HERE (end of function) to ensure it is above the dark overlay for unpublished levels
+
+    // Mocking a user avatar with a colored circle
+    const avatarRadius = scale(25);
+    const avatar = new PIXI.Graphics();
+    const colors = [0xFF6B6B, 0x4ECDC4, 0x45B7D1, 0xFFBE76, 0xFF7979, 0xBADC58];
+    // Hash authorId to get consistent color
+    const authorKey = levelData.authorId || levelData.author || 'unknown';
+    let hash = 0;
+    for (let i = 0; i < authorKey.length; i++) {
+      hash = authorKey.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % colors.length;
+    const color = colors[colorIndex];
+
+    avatar.circle(0, 0, avatarRadius);
+    avatar.fill(color);
+    avatar.stroke({ width: scale(3), color: 0xFFFFFF });
+
+    // Position to slightly protrude from the corner (center closer to the corner)
+    avatar.position.set(width - scale(4), height - scale(4));
+
+    // Interaction for avatar
+    avatar.eventMode = 'static';
+    avatar.cursor = 'pointer';
+    avatar.on('pointertap', (e) => {
+      e.stopPropagation();
+      this.showUserProfile(levelData, color);
+    });
+
+    container.addChild(avatar);
 
     // 5. Status (Top Right)
     // Placeholder circle removed as in original
@@ -730,7 +740,15 @@ export class LevelSelectionUI extends PIXI.Container {
       () => {
         MockLevelService.getInstance().toggleLike(levelData.id);
         this.setupGrid();
-      }
+      },
+      (levelId) => {
+        MockLevelService.getInstance().deleteLevel(levelId);
+        this.closeUserProfile();
+        // Remove locally to update UI immediately without re-fetching
+        this.levels = this.levels.filter(l => l.id !== levelId);
+        this.refreshVisibleLevels();
+      },
+      this.filterAuthorId === CURRENT_USER_ID // allowDelete
     );
     this.addChild(this.userProfileCard);
   }
