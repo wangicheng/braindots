@@ -13,6 +13,7 @@ export const en = {
   'language.en': 'English',
   'language.zh-TW': '繁體中文',
   'language.ru': 'Русский',
+  'language.ja': 'Japanese',
   'app.title': 'Open Dots',
   'common.confirm': 'Confirm',
   'common.cancel': 'Cancel',

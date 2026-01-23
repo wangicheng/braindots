@@ -17,11 +17,13 @@ async function main(): Promise<void> {
     const { en } = await import('./game/i18n/locales/en');
     const { zhTW } = await import('./game/i18n/locales/zh-TW');
     const { ru } = await import('./game/i18n/locales/ru');
+    const { ja } = await import('./game/i18n/locales/ja');
 
     const langMgr = LanguageManager.getInstance();
     langMgr.registerLocale('en', en);
     langMgr.registerLocale('zh-TW', zhTW);
     langMgr.registerLocale('ru', ru);
+    langMgr.registerLocale('ja', ja);
 
     const game = new Game();
     await game.init();

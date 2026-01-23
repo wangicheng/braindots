@@ -286,7 +286,8 @@ export class SettingsUI extends PIXI.Container {
     const langs = [
       { code: 'en', label: 'English' },
       { code: 'zh-TW', label: '繁體中文' },
-      { code: 'ru', label: 'Русский' }
+      { code: 'ru', label: 'Русский' },
+      { code: 'ja', label: '日本語' }
     ];
 
     const startY = scale(100);
