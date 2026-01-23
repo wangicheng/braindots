@@ -3,6 +3,7 @@ import * as PIXI from 'pixi.js';
 import { getCanvasWidth, getCanvasHeight, scale } from '../config';
 import { PENS } from '../data/PenData';
 import type { Pen } from '../data/PenData';
+import { LanguageManager } from '../i18n/LanguageManager';
 
 export class PenSelectionUI extends PIXI.Container {
   private overlay!: PIXI.Graphics;
@@ -150,7 +151,7 @@ export class PenSelectionUI extends PIXI.Container {
     this.card.addChild(badge);
 
     // Title (Center)
-    const title = new PIXI.Text({ text: 'Choose a pen', style: { fontFamily: 'Arial', fontSize: scale(40), fill: 0x3E3E3E } });
+    const title = new PIXI.Text({ text: LanguageManager.getInstance().t('pen.title'), style: { fontFamily: 'Arial', fontSize: scale(40), fill: 0x3E3E3E } });
     title.anchor.set(0.5, 0);
     title.position.set(this.cardWidth / 2, headerY);
     this.card.addChild(title);
@@ -215,7 +216,8 @@ export class PenSelectionUI extends PIXI.Container {
     gfx.angle = 30;
 
     // Label
-    const text = new PIXI.Text({ text: pen.name, style: { fontFamily: 'Arial', fontSize: scale(20), fill: 0x333333 } });
+    const penName = LanguageManager.getInstance().t(`pen.names.${pen.id}`);
+    const text = new PIXI.Text({ text: penName, style: { fontFamily: 'Arial', fontSize: scale(20), fill: 0x333333 } });
     text.anchor.set(0.5);
     text.y = scale(130);
 
@@ -235,7 +237,7 @@ export class PenSelectionUI extends PIXI.Container {
     bg.fill(0x37A4E9);
     btn.addChild(bg);
 
-    const text = new PIXI.Text({ text: 'Use', style: { fontFamily: 'Arial', fontSize: scale(28), fill: 0xFFFFFF } });
+    const text = new PIXI.Text({ text: LanguageManager.getInstance().t('pen.use'), style: { fontFamily: 'Arial', fontSize: scale(28), fill: 0xFFFFFF } });
     text.anchor.set(0.5);
     btn.addChild(text);
 

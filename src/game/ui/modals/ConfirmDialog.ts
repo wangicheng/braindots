@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { getCanvasWidth, getCanvasHeight, scale } from '../../config';
+import { LanguageManager } from '../../i18n/LanguageManager';
 
 export class ConfirmDialog extends PIXI.Container {
   private message: string;
@@ -42,8 +43,8 @@ export class ConfirmDialog extends PIXI.Container {
   private refreshUI(): void {
     this.removeChildren();
 
-    const confirmText = this.options.confirmText || 'Confirm';
-    const cancelText = this.options.cancelText || 'Cancel';
+    const confirmText = this.options.confirmText || LanguageManager.getInstance().t('common.confirm');
+    const cancelText = this.options.cancelText || LanguageManager.getInstance().t('common.cancel');
     const showCancel = this.options.showCancel !== false;
 
     const canvasWidth = getCanvasWidth();

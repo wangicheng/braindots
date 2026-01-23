@@ -4,6 +4,7 @@ import { getCanvasWidth, getCanvasHeight, scale } from '../../config';
 import type { LevelData } from '../../levels/LevelSchema';
 import { CURRENT_USER_ID, MockLevelService } from '../../services/MockLevelService';
 import { ConfirmDialog } from './ConfirmDialog';
+import { LanguageManager } from '../../i18n/LanguageManager';
 
 export class UserProfileCard extends PIXI.Container {
   private onCloseCallback: () => void;
@@ -157,7 +158,8 @@ export class UserProfileCard extends PIXI.Container {
     });
 
     // Row 1: Date
-    const labelText = this.levelData.isPublished ? 'Published: ' : 'Created: ';
+    const t = (key: string) => LanguageManager.getInstance().t(key);
+    const labelText = this.levelData.isPublished ? t('level.published') : t('level.created');
     const dateLabel = new PIXI.Text({ text: labelText, style: statLabelStyle });
     const dateValue = new PIXI.Text({ text: dateStr, style: statValueStyle });
     dateValue.x = dateLabel.width;
@@ -169,7 +171,7 @@ export class UserProfileCard extends PIXI.Container {
     // Row 2: Attempts & Clears
 
     // Attempts
-    const attemptsLabel = new PIXI.Text({ text: 'Attempts: ', style: statLabelStyle });
+    const attemptsLabel = new PIXI.Text({ text: t('level.attempts'), style: statLabelStyle });
     const attemptsValue = new PIXI.Text({ text: attempts.toString(), style: statValueStyle });
     attemptsValue.x = attemptsLabel.width;
 
@@ -182,7 +184,7 @@ export class UserProfileCard extends PIXI.Container {
     const percentage = attempts > 0 ? Math.round((clears / attempts) * 100) : 0;
     const clearsText = `${clears} (${percentage}%)`;
 
-    const clearsLabel = new PIXI.Text({ text: 'Clears: ', style: statLabelStyle });
+    const clearsLabel = new PIXI.Text({ text: t('level.clears'), style: statLabelStyle });
     const clearsValue = new PIXI.Text({ text: clearsText, style: statValueStyle });
     clearsValue.x = clearsLabel.width;
 
@@ -290,7 +292,7 @@ export class UserProfileCard extends PIXI.Container {
 
     // Stats (Below Name)
     const statsText = new PIXI.Text({
-      text: 'Total Levels: 42', // Mock
+      text: t('profile.total_levels') + '42', // Mock
       style: {
         fontFamily: 'Arial',
         fontSize: scale(16),
@@ -472,7 +474,7 @@ export class UserProfileCard extends PIXI.Container {
     container.addChild(bg);
 
     const text = new PIXI.Text({
-      text: 'View Levels',
+      text: LanguageManager.getInstance().t('profile.view_levels'),
       style: {
         fontFamily: 'Arial',
         fontSize: scale(14),
@@ -507,7 +509,7 @@ export class UserProfileCard extends PIXI.Container {
     container.addChild(bg);
 
     const text = new PIXI.Text({
-      text: 'Delete',
+      text: LanguageManager.getInstance().t('level.delete'),
       style: {
         fontFamily: 'Arial',
         fontSize: scale(14),
@@ -525,7 +527,7 @@ export class UserProfileCard extends PIXI.Container {
     container.on('pointertap', () => {
       if (this.onDeleteCallback) {
         const dialog = new ConfirmDialog(
-          'Are you sure you want to delete this level?\nThis cannot be undone.',
+          LanguageManager.getInstance().t('level.delete_confirm'),
           () => {
             if (this.onDeleteCallback) this.onDeleteCallback(this.levelData.id);
             this.removeChild(dialog);
@@ -536,8 +538,8 @@ export class UserProfileCard extends PIXI.Container {
             dialog.destroy();
           },
           {
-            confirmText: 'Delete',
-            cancelText: 'Cancel'
+            confirmText: LanguageManager.getInstance().t('level.delete'),
+            cancelText: LanguageManager.getInstance().t('common.cancel')
           }
         );
         this.addChild(dialog);

@@ -48,6 +48,7 @@ import {
   CONVEYOR_BELT_HEIGHT,
 } from './config';
 import { EffectManager } from './effects/EffectManager';
+import { LanguageManager } from './i18n/LanguageManager';
 
 export const GameState = {
   READY: 0,
@@ -694,16 +695,16 @@ export class Game {
 
       if (!currentLevel.authorPassed) {
         this.showConfirmDialog(
-          'You must clear the level first.',
+          LanguageManager.getInstance().t('publish.confirm_clear'),
           () => this.closeConfirmDialog(),
           () => this.closeConfirmDialog(),
-          { showCancel: false, confirmText: 'OK' }
+          { showCancel: false, confirmText: LanguageManager.getInstance().t('common.ok') }
         );
         return;
       }
 
       this.showConfirmDialog(
-        'Publish this level?',
+        LanguageManager.getInstance().t('publish.confirm_publish'),
         async () => {
           this.closeConfirmDialog();
           // Auto-save current design first, especially if they just passed
@@ -712,7 +713,7 @@ export class Game {
           currentLevel.isPublished = true;
 
           this.showConfirmDialog(
-            'Published!',
+            LanguageManager.getInstance().t('publish.success'),
             () => {
               this.closeConfirmDialog();
               this.showLevelSelection();
@@ -721,7 +722,7 @@ export class Game {
               this.closeConfirmDialog();
               this.showLevelSelection();
             },
-            { showCancel: false, confirmText: 'OK' }
+            { showCancel: false, confirmText: LanguageManager.getInstance().t('common.ok') }
           );
         },
         () => this.closeConfirmDialog()

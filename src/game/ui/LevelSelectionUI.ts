@@ -16,6 +16,7 @@ import { SettingsUI } from './SettingsUI';
 import { type Pen } from '../data/PenData';
 import { UserProfileCard } from './modals/UserProfileCard';
 import { CURRENT_USER_ID, MockLevelService } from '../services/MockLevelService';
+import { LanguageManager } from '../i18n/LanguageManager';
 
 export class LevelSelectionUI extends PIXI.Container {
   private levels: LevelData[];
@@ -94,9 +95,17 @@ export class LevelSelectionUI extends PIXI.Container {
     this.refreshVisibleLevels();
 
     this.setupInteraction();
+
+    // Listen for language changes
+    LanguageManager.getInstance().subscribe(() => {
+      this.headerContainer.removeChildren();
+      this.setupHeader();
+      this.setupGrid();
+    });
   }
 
   private setupHeader(): void {
+    const t = (key: string) => LanguageManager.getInstance().t(key);
     const canvasWidth = getCanvasWidth();
     const headerHeight = this.getHeaderHeight();
 
@@ -107,7 +116,7 @@ export class LevelSelectionUI extends PIXI.Container {
       fontWeight: 'bold',
       fill: '#555555',
     });
-    const title = new PIXI.Text({ text: 'Open Dots', style: titleStyle });
+    const title = new PIXI.Text({ text: t('app.title'), style: titleStyle });
     title.position.set(scale(60), (headerHeight - title.height) / 2);
     this.headerContainer.addChild(title);
 
@@ -116,15 +125,15 @@ export class LevelSelectionUI extends PIXI.Container {
     const sortX = canvasWidth / 2 - scale(140);
 
     // "Latest" Button
-    this.latestBtnText = this.createSortButton('Latest', sortX, sortY, 'latest');
+    this.latestBtnText = this.createSortButton(t('sort.latest'), sortX, sortY, 'latest');
     this.headerContainer.addChild(this.latestBtnText);
 
     // "Popular" Button
-    this.popularBtnText = this.createSortButton('Popular', sortX + scale(100), sortY, 'popular');
+    this.popularBtnText = this.createSortButton(t('sort.popular'), sortX + scale(100), sortY, 'popular');
     this.headerContainer.addChild(this.popularBtnText);
 
     // "Mine" Button
-    this.mineBtnText = this.createHeaderInteractiveText('Mine', sortX + scale(220), sortY, () => {
+    this.mineBtnText = this.createHeaderInteractiveText(t('sort.mine'), sortX + scale(220), sortY, () => {
       if (this.filterAuthorId === CURRENT_USER_ID) {
         this.setFilterAuthor(null);
       } else {
@@ -404,11 +413,11 @@ export class LevelSelectionUI extends PIXI.Container {
       let textColor = '#FFFFFF';
 
       if (levelData.authorPassed) {
-        labelText = 'Draft';
+        labelText = LanguageManager.getInstance().t('status.draft');
         labelColor = 0x888888; // Medium Gray for "Ready but not public"
         textColor = '#FFFFFF';
       } else {
-        labelText = 'Untested';
+        labelText = LanguageManager.getInstance().t('status.untested');
         labelColor = 0xEEEEEE; // Very Light Gray for "Not passed"
         textColor = '#888888'; // Gray text
       }

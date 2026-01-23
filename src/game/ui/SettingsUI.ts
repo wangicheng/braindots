@@ -3,7 +3,9 @@ import * as PIXI from 'pixi.js';
 import { getCanvasWidth, getCanvasHeight, scale } from '../config';
 import { MockLevelService } from '../services/MockLevelService';
 
-type SettingsView = 'list' | 'profile';
+import { LanguageManager } from '../i18n/LanguageManager';
+
+type SettingsView = 'list' | 'profile' | 'language';
 
 export class SettingsUI extends PIXI.Container {
   private onClose: () => void;
@@ -26,7 +28,14 @@ export class SettingsUI extends PIXI.Container {
 
     // Resize listener
     window.addEventListener('resize', this.handleResize);
+
+    // Language listener
+    LanguageManager.getInstance().subscribe(this.handleLanguageChange);
   }
+
+  private handleLanguageChange = (): void => {
+    this.refreshUI();
+  };
 
   private handleResize = (): void => {
     this.refreshUI();
@@ -77,12 +86,16 @@ export class SettingsUI extends PIXI.Container {
       this.drawListView(cardWidth);
     } else if (this.currentView === 'profile') {
       this.drawProfileView(cardWidth);
+    } else if (this.currentView === 'language') {
+      this.drawLanguageView(cardWidth);
     }
   }
 
   private drawListView(width: number): void {
+    const t = (key: string) => LanguageManager.getInstance().t(key);
+
     // Header
-    const headerParams = { title: 'Settings', showBack: false };
+    const headerParams = { title: t('settings.title'), showBack: false };
     this.drawHeader(width, headerParams);
 
     // List Items
@@ -92,7 +105,8 @@ export class SettingsUI extends PIXI.Container {
     const itemX = scale(20);
 
     const items = [
-      { label: 'Profile', onClick: () => this.setView('profile'), icon: '\uF4E1' }, // person-fill
+      { label: t('settings.profile'), onClick: () => this.setView('profile'), icon: '\uF4E1' }, // person-fill
+      { label: t('settings.language'), onClick: () => this.setView('language'), icon: '\uF658' }, // globe
       // Add more settings here later, e.g. Sound, About
     ];
 
@@ -105,8 +119,9 @@ export class SettingsUI extends PIXI.Container {
   }
 
   private drawProfileView(width: number): void {
+    const t = (key: string) => LanguageManager.getInstance().t(key);
     // Header
-    this.drawHeader(width, { title: 'Edit Profile', showBack: true, onBack: () => this.setView('list') });
+    this.drawHeader(width, { title: t('profile.title'), showBack: true, onBack: () => this.setView('list') });
 
     const profile = MockLevelService.getInstance().getUserProfile();
     const centerX = width / 2;
@@ -174,7 +189,7 @@ export class SettingsUI extends PIXI.Container {
     });
 
     const changeText = new PIXI.Text({
-      text: 'Tap to upload image',
+      text: t('profile.upload'),
       style: {
         fontFamily: 'Arial',
         fontSize: scale(12),
@@ -190,7 +205,7 @@ export class SettingsUI extends PIXI.Container {
     const nameY = avatarY + avatarRadius + scale(60);
 
     const nameLabel = new PIXI.Text({
-      text: 'Name',
+      text: t('profile.name'),
       style: {
         fontFamily: 'Arial',
         fontSize: scale(14),
@@ -218,7 +233,7 @@ export class SettingsUI extends PIXI.Container {
     inputBg.cursor = 'text';
     inputBg.on('pointertap', () => {
       const MAX_NAME_LENGTH = 16;
-      let result = window.prompt(`Enter your name (Max ${MAX_NAME_LENGTH} chars):`, profile.name);
+      let result = window.prompt(t('profile.prompt'), profile.name);
       if (result !== null) {
         let trimmed = result.trim();
         if (trimmed.length > 0) {
@@ -261,6 +276,58 @@ export class SettingsUI extends PIXI.Container {
     this.card.addChild(editIcon);
   }
 
+  private drawLanguageView(width: number): void {
+    const t = (key: string) => LanguageManager.getInstance().t(key);
+
+    // Header
+    this.drawHeader(width, { title: t('language.title'), showBack: true, onBack: () => this.setView('list') });
+
+    const langs = [
+      { code: 'en', label: 'English' },
+      { code: 'zh-TW', label: '繁體中文' }
+    ];
+
+    const startY = scale(100);
+    const itemHeight = scale(60);
+    const bgWidth = width - scale(40);
+    const itemX = scale(20);
+
+    const currentLang = LanguageManager.getInstance().getCurrentLanguage();
+
+    langs.forEach((lang, index) => {
+      const y = startY + (index * (itemHeight + scale(10)));
+      const isSelected = lang.code === currentLang;
+      const icon = isSelected ? '\uF26E' : ''; // check-lg or empty
+
+      const btn = this.createListItem(lang.label, icon, bgWidth, itemHeight, () => {
+        LanguageManager.getInstance().setLanguage(lang.code);
+      });
+      btn.position.set(itemX, y);
+
+      // Highlight selected
+      if (isSelected) {
+        // Modify the bg created in createListItem
+        const bg = btn.getChildAt(0) as PIXI.Graphics;
+        bg.clear();
+        bg.roundRect(0, 0, bgWidth, itemHeight, itemHeight / 2);
+        bg.stroke({ width: 2, color: 0x37A4E9 });
+        bg.fill(0xF0F8FF);
+
+        // Modify icon color
+        const iconTxt = btn.getChildAt(1) as PIXI.Text;
+        iconTxt.style.fill = '#37A4E9';
+      }
+
+      // Remove chevron created by default in createListItem
+      if (btn.children.length > 3) {
+        const chevron = btn.getChildAt(3); // Based on createListItem implementation
+        chevron.visible = false;
+      }
+
+      this.card.addChild(btn);
+    });
+  }
+
   private drawHeader(width: number, params: { title: string, showBack?: boolean, onBack?: () => void }): void {
     const headerH = scale(60);
 
@@ -290,7 +357,8 @@ export class SettingsUI extends PIXI.Container {
         style: {
           fontFamily: 'bootstrap-icons',
           fontSize: scale(24),
-          fill: '#555555'
+          fill: '#555555',
+          padding: scale(5)
         }
       });
       icon.anchor.set(0.5);
@@ -353,7 +421,8 @@ export class SettingsUI extends PIXI.Container {
       style: {
         fontFamily: 'bootstrap-icons',
         fontSize: scale(20),
-        fill: '#555555'
+        fill: '#555555',
+        padding: scale(5)
       }
     });
     icon.anchor.set(0.5);
@@ -379,7 +448,8 @@ export class SettingsUI extends PIXI.Container {
       style: {
         fontFamily: 'bootstrap-icons',
         fontSize: scale(16),
-        fill: '#CCCCCC'
+        fill: '#CCCCCC',
+        padding: scale(5)
       }
     });
     arrow.anchor.set(0.5);
@@ -498,6 +568,7 @@ export class SettingsUI extends PIXI.Container {
 
   public destroy(options?: any): void {
     window.removeEventListener('resize', this.handleResize);
+    LanguageManager.getInstance().unsubscribe(this.handleLanguageChange);
     this.removeFileInput();
     super.destroy(options);
   }
