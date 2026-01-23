@@ -12,7 +12,7 @@ export const ru = {
   'language.en': 'English',
   'language.zh-TW': '繁體中文',
   'language.ru': 'Русский',
-  'language.ja': 'Японский',
+  'language.ja': '日本語',
   'app.title': 'Open Dots',
   'common.confirm': 'Подтвердить',
   'common.cancel': 'Отмена',

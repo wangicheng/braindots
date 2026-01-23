@@ -27,6 +27,7 @@ export class SettingsUI extends PIXI.Container {
   private overlay: PIXI.Graphics;
   private card: PIXI.Container;
   private fileInputElement: HTMLInputElement | null = null;
+  private avatarLoadId: number = 0;
 
   constructor(onClose: () => void) {
     super();
@@ -140,6 +141,9 @@ export class SettingsUI extends PIXI.Container {
     // Header
     this.drawHeader(width, { title: t('profile.title'), showBack: true, onBack: () => this.setView('list') });
 
+    // Increment load ID to invalidate previous pending loads
+    const currentLoadId = ++this.avatarLoadId;
+
     const profile = MockLevelService.getInstance().getUserProfile();
     const centerX = width / 2;
 
@@ -155,7 +159,7 @@ export class SettingsUI extends PIXI.Container {
       // Image Avatar
       PIXI.Assets.load(profile.avatarUrl)
         .then((texture) => {
-          if (!this.card.parent) return; // Component destroyed
+          if (!this.card.parent || currentLoadId !== this.avatarLoadId) return; // Component destroyed or new load started
 
           const sprite = new PIXI.Sprite(texture);
           const aspect = sprite.width / sprite.height;
@@ -302,12 +306,16 @@ export class SettingsUI extends PIXI.Container {
     // Header
     this.drawHeader(width, { title: t('language.title'), showBack: true, onBack: () => this.setView('list') });
 
-    const langs = [
-      { code: 'en', label: 'English' },
-      { code: 'zh-TW', label: '繁體中文' },
-      { code: 'ru', label: 'Русский' },
-      { code: 'ja', label: '日本語' }
-    ];
+    // Dynamic Language List
+    const availableLangs = LanguageManager.getInstance().getAvailableLanguages();
+    // Sort to ensure consistent order, maybe English first or specific order?
+    // For now, sorting alphabetically by code or keeping registration order (which is usually predictable)
+    // Registration order in main.ts is: en, zh-TW, ru, ja
+
+    const langs = availableLangs.map(code => ({
+      code,
+      label: t(`language.${code}` as TranslationKey)
+    }));
 
     const startY = scale(100);
     const itemHeight = scale(60);

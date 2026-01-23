@@ -36,6 +36,10 @@ export class LanguageManager {
     return this.currentLang;
   }
 
+  public getAvailableLanguages(): string[] {
+    return Object.keys(this.locales);
+  }
+
   public t(key: TranslationKey): string {
     const locale = this.locales[this.currentLang];
     if (locale && locale[key]) {
@@ -44,6 +48,11 @@ export class LanguageManager {
     // Fallback to English if not found
     if (this.currentLang !== 'en' && this.locales['en'] && this.locales['en'][key]) {
       return this.locales['en'][key];
+    }
+
+    // Warning for missing keys in development
+    if (import.meta.env.DEV) {
+      console.warn(`Missing translation key: ${key}`);
     }
     return key;
   }

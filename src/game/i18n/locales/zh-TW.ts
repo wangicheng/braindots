@@ -12,7 +12,7 @@ export const zhTW = {
   'language.en': 'English',
   'language.zh-TW': '繁體中文',
   'language.ru': 'Русский',
-  'language.ja': '日文',
+  'language.ja': '日本語',
   'app.title': 'Open Dots',
   'common.confirm': '確認',
   'common.cancel': '取消',

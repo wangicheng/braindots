@@ -9,6 +9,15 @@ import { LanguageManager, type TranslationKey } from '../i18n/LanguageManager';
 // Local visual constants matches object definitions
 const LASER_COLOR = 0x00FF00; // Green for laser
 
+const EDITOR_LAYOUT = {
+  BUTTON_Y: 36,
+  BUTTON_SIZE: 52,
+  BUTTON_SPACING: 20,
+  MARGIN: 20,
+  BAR_HEIGHT: 140,
+  TAB_HEIGHT: 40
+};
+
 export class EditorUI extends PIXI.Container {
   private currentMode: 'edit' | 'play' = 'edit';
   private toggleContainer: PIXI.Container | null = null;
@@ -66,10 +75,10 @@ export class EditorUI extends PIXI.Container {
     this.removeChildren();
     const width = getCanvasWidth();
 
-    const btnY = scale(36);
-    const btnSize = scale(52);
-    const btnSpacing = scale(20);
-    const margin = scale(20);
+    const btnY = scale(EDITOR_LAYOUT.BUTTON_Y);
+    const btnSize = scale(EDITOR_LAYOUT.BUTTON_SIZE);
+    const btnSpacing = scale(EDITOR_LAYOUT.BUTTON_SPACING);
+    const margin = scale(EDITOR_LAYOUT.MARGIN);
 
     // Back Button (Left)
     this.backBtn = this.createButton('\uF284', margin, btnY, this.onClose);
@@ -316,8 +325,8 @@ export class EditorUI extends PIXI.Container {
   private createBottomBar(): void {
     const width = getCanvasWidth();
     const height = getCanvasHeight();
-    const barHeight = scale(140);
-    const tabHeight = scale(40);
+    const barHeight = scale(EDITOR_LAYOUT.BAR_HEIGHT);
+    const tabHeight = scale(EDITOR_LAYOUT.TAB_HEIGHT);
 
     this.bottomBar = new PIXI.Graphics();
     // Start background below tabs
@@ -624,5 +633,21 @@ export class EditorUI extends PIXI.Container {
     if (this.playPenBtn) {
       this.playPenBtn.visible = visible;
     }
+  }
+
+  public destroy(options?: any): void {
+    this.toggleContainer = null;
+    this.tabsContainer = null;
+    this.itemsContainer = null;
+    this.toolsContainer = null;
+    this.backBtn = null;
+    this.copyBtn = null;
+    this.deleteBtn = null;
+    this.bottomBar = null;
+    this.playHomeBtn = null;
+    this.playRestartBtn = null;
+    this.playPenBtn = null;
+
+    super.destroy(options);
   }
 }
