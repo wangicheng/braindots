@@ -17,6 +17,8 @@ import {
   CONVEYOR_BELT_GEAR_SPEED_FACTOR,
   CONVEYOR_BELT_FRICTION,
   COLLISION_GROUP,
+  HIT_AREA_COLOR,
+  HIT_AREA_ALPHA,
 } from '../config';
 import type { ConveyorBeltConfig } from '../levels/LevelSchema';
 
@@ -160,7 +162,7 @@ export class ConveyorBelt {
       g.arc(-w / 2, 0, r, Math.PI / 2, -Math.PI / 2);
       // Close path and stroke (no fill - transparent)
       g.closePath();
-      g.fill({ color: 0xFFFFFF, alpha: 0.001 }); // Transparent fill for hit detection
+      g.fill({ color: HIT_AREA_COLOR, alpha: HIT_AREA_ALPHA }); // Transparent fill for hit detection
       g.stroke({ width: BORDER_WIDTH, color: CONVEYOR_BELT_COLOR });
     };
 

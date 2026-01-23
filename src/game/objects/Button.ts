@@ -6,14 +6,17 @@
 import * as PIXI from 'pixi.js';
 import RAPIER from '@dimforge/rapier2d-compat';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
-import { SCALE, COLLISION_GROUP } from '../config';
+import {
+  SCALE,
+  COLLISION_GROUP,
+  BUTTON_COLOR,
+  BUTTON_THICKNESS,
+  BUTTON_VERTICAL_BAR_HEIGHT,
+  BUTTON_HORIZONTAL_BAR_WIDTH,
+  HIT_AREA_COLOR,
+  HIT_AREA_ALPHA,
+} from '../config';
 import type { ButtonConfig } from '../levels/LevelSchema';
-
-// Button appearance constants
-const BUTTON_COLOR = 0xA0A0A0;
-const BUTTON_THICKNESS = 5;
-const HORIZONTAL_BAR_WIDTH = 32;  // Slightly shorter than vertical
-const VERTICAL_BAR_HEIGHT = 40;
 
 // Sink animation constants
 const SINK_DURATION = 0.25;  // seconds
@@ -33,7 +36,7 @@ export class Button {
   constructor(physicsWorld: PhysicsWorld, config: ButtonConfig) {
     const { x, y, angle = 0 } = config;
     this.angle = (angle * Math.PI) / 180;
-    this.verticalBarHeight = VERTICAL_BAR_HEIGHT;
+    this.verticalBarHeight = BUTTON_VERTICAL_BAR_HEIGHT;
 
     // Create graphics
     this.graphics = Button.createVisual(config);
@@ -55,10 +58,10 @@ export class Button {
     // Create colliders for T-shape (two rectangles)
     // Horizontal bar (top of T)
     const hBarDesc = R.ColliderDesc.cuboid(
-      (HORIZONTAL_BAR_WIDTH / 2) / SCALE,
+      (BUTTON_HORIZONTAL_BAR_WIDTH / 2) / SCALE,
       (BUTTON_THICKNESS / 2) / SCALE
     )
-      .setTranslation(0, (VERTICAL_BAR_HEIGHT / 2 - BUTTON_THICKNESS / 2) / SCALE)
+      .setTranslation(0, (BUTTON_VERTICAL_BAR_HEIGHT / 2 - BUTTON_THICKNESS / 2) / SCALE)
       .setFriction(0)  // No friction
       .setRestitution(0)
       .setCollisionGroups(COLLISION_GROUP.BUTTON)
@@ -70,7 +73,7 @@ export class Button {
     // Vertical bar (stem of T)
     const vBarDesc = R.ColliderDesc.cuboid(
       (BUTTON_THICKNESS / 2) / SCALE,
-      (VERTICAL_BAR_HEIGHT / 2) / SCALE
+      (BUTTON_VERTICAL_BAR_HEIGHT / 2) / SCALE
     )
       .setFriction(0)  // No friction
       .setRestitution(0)
@@ -158,24 +161,24 @@ export class Button {
     graphics.rotation = rad;
 
     // Hit Area (Transparent) - Covers full bounds
-    graphics.rect(-HORIZONTAL_BAR_WIDTH / 2, -VERTICAL_BAR_HEIGHT / 2, HORIZONTAL_BAR_WIDTH, VERTICAL_BAR_HEIGHT);
-    graphics.fill({ color: 0xFFFFFF, alpha: 0.001 });
+    graphics.rect(-BUTTON_HORIZONTAL_BAR_WIDTH / 2, -BUTTON_VERTICAL_BAR_HEIGHT / 2, BUTTON_HORIZONTAL_BAR_WIDTH, BUTTON_VERTICAL_BAR_HEIGHT);
+    graphics.fill({ color: HIT_AREA_COLOR, alpha: HIT_AREA_ALPHA });
 
     // Draw horizontal bar (top of T) - centered at top
-    const hBarY = -VERTICAL_BAR_HEIGHT / 2 + BUTTON_THICKNESS / 2;
+    const hBarY = -BUTTON_VERTICAL_BAR_HEIGHT / 2 + BUTTON_THICKNESS / 2;
     graphics.rect(
-      -HORIZONTAL_BAR_WIDTH / 2,
+      -BUTTON_HORIZONTAL_BAR_WIDTH / 2,
       hBarY - BUTTON_THICKNESS / 2,
-      HORIZONTAL_BAR_WIDTH,
+      BUTTON_HORIZONTAL_BAR_WIDTH,
       BUTTON_THICKNESS
     );
 
     // Draw vertical bar (stem of T) - centered
     graphics.rect(
       -BUTTON_THICKNESS / 2,
-      -VERTICAL_BAR_HEIGHT / 2,
+      -BUTTON_VERTICAL_BAR_HEIGHT / 2,
       BUTTON_THICKNESS,
-      VERTICAL_BAR_HEIGHT
+      BUTTON_VERTICAL_BAR_HEIGHT
     );
 
     graphics.fill({ color: BUTTON_COLOR });

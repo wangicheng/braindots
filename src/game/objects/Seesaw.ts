@@ -180,7 +180,7 @@ export class Seesaw {
 
     // Draw inner circle (gray background)
     pivotGraphics.circle(0, 0, pivotInnerRadius);
-    pivotGraphics.fill({ color: 0xC8C8C8 });
+    pivotGraphics.fill({ color: SEESAW_COLOR });
 
     // Pivot is fixed at the anchor position
     pivotGraphics.position.set(0, 0);

@@ -1,7 +1,13 @@
 import * as PIXI from 'pixi.js';
 import RAPIER from '@dimforge/rapier2d-compat';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
-import { SCALE, COLLISION_GROUP } from '../config';
+import {
+  SCALE,
+  COLLISION_GROUP,
+  NET_BORDER_COLOR,
+  NET_BORDER_WIDTH,
+  NET_BORDER_ALPHA
+} from '../config';
 import type { NetConfig } from '../levels/LevelSchema';
 
 export class Net {
@@ -90,7 +96,11 @@ export class Net {
     // Create border
     const border = new PIXI.Graphics();
     border.roundRect(-config.width / 2, -config.height / 2, config.width, config.height, radius);
-    border.stroke({ width: 2, color: 0x808080, alpha: 0.8 }); // #808080 border
+    border.stroke({
+      width: NET_BORDER_WIDTH,
+      color: NET_BORDER_COLOR,
+      alpha: NET_BORDER_ALPHA
+    });
     graphics.addChild(border);
 
     return graphics;

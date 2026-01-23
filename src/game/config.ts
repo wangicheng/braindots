@@ -104,6 +104,17 @@ export const BALL_DENSITY = 1.0;
 export const BALL_FRICTION = 0;
 export const BALL_RESTITUTION = 0.0;
 
+// Button settings
+export const BUTTON_COLOR = 0xA0A0A0;
+export const BUTTON_THICKNESS = 5;
+export const BUTTON_VERTICAL_BAR_HEIGHT = 40;
+export const BUTTON_HORIZONTAL_BAR_WIDTH = 32;
+
+// Net settings
+export const NET_BORDER_COLOR = 0x808080;
+export const NET_BORDER_WIDTH = 2;
+export const NET_BORDER_ALPHA = 0.8;
+
 // Obstacle settings (Static)
 export const OBSTACLE_COLOR = 0x959595;
 export const OBSTACLE_DENSITY = 50.0;
@@ -142,6 +153,10 @@ export const CONVEYOR_BELT_FRICTION = 0.0;      // Friction for conveyor belt
 export const BACKGROUND_COLOR = 0xF5F5F5;
 export const GRID_SIZE = 36;
 export const GRID_COLOR = 0xE0EFFF; // Light blue grid color
+
+// Common UI/Interaction colors
+export const HIT_AREA_COLOR = 0xFFFFFF;
+export const HIT_AREA_ALPHA = 0.001;
 
 /**
  * Rapier Collision Groups
