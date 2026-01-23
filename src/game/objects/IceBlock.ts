@@ -10,6 +10,7 @@ import {
   ICE_BLOCK_COLOR,
   ICE_BLOCK_ALPHA,
   COLLISION_GROUP,
+  Z_INDEX,
 } from '../config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { IceBlockConfig } from '../levels/LevelSchema';
@@ -129,6 +130,7 @@ export class IceBlock {
     const initialAlpha = ICE_BLOCK_ALPHA;
 
     const graphics = new PIXI.Graphics();
+    graphics.zIndex = Z_INDEX.ICE_BLOCK;
 
     // Draw filled rectangle with transparency
     graphics.rect(-width / 2, -height / 2, width, height);

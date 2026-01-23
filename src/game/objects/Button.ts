@@ -15,6 +15,7 @@ import {
   BUTTON_HORIZONTAL_BAR_WIDTH,
   HIT_AREA_COLOR,
   HIT_AREA_ALPHA,
+  Z_INDEX,
 } from '../config';
 import type { ButtonConfig } from '../levels/LevelSchema';
 
@@ -157,6 +158,7 @@ export class Button {
     const rad = (angle * Math.PI) / 180;
 
     const graphics = new PIXI.Graphics();
+    graphics.zIndex = Z_INDEX.BUTTON;
     graphics.position.set(x, y);
     graphics.rotation = rad;
 

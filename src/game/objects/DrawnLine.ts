@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
 import RAPIER from '@dimforge/rapier2d-compat';
-import { SCALE } from '../config';
+import { SCALE, Z_INDEX } from '../config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { Point } from '../utils/douglasPeucker';
 import { drawLineWithCornerStyle, createLinePhysicsColliders } from '../utils/lineRenderer';
@@ -24,6 +24,7 @@ export class DrawnLine {
 
     // Create Pixi.js graphics
     this.graphics = new PIXI.Graphics();
+    this.graphics.zIndex = Z_INDEX.DRAWN_LINE;
     this.drawLine(centroid);
     this.graphics.position.set(centroid.x, centroid.y);
 

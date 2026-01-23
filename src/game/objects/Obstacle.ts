@@ -7,6 +7,7 @@ import {
   OBSTACLE_RESTITUTION,
   OBSTACLE_DENSITY,
   COLLISION_GROUP,
+  Z_INDEX,
 } from '../config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { ObstacleConfig } from '../levels/LevelSchema';
@@ -335,6 +336,7 @@ export class Obstacle {
     const effectiveAngle = type === 'circle' ? 0 : angle;
 
     const graphics = new PIXI.Graphics();
+    graphics.zIndex = Z_INDEX.OBSTACLE;
     // Set position and rotation (Pixi)
     graphics.position.set(x, y);
     graphics.rotation = (effectiveAngle * Math.PI) / 180;

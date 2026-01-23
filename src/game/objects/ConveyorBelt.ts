@@ -19,6 +19,7 @@ import {
   COLLISION_GROUP,
   HIT_AREA_COLOR,
   HIT_AREA_ALPHA,
+  Z_INDEX,
 } from '../config';
 import type { ConveyorBeltConfig } from '../levels/LevelSchema';
 
@@ -143,6 +144,7 @@ export class ConveyorBelt {
 
     // Create main container
     const graphics = new PIXI.Container();
+    graphics.zIndex = Z_INDEX.CONVEYOR_BELT;
     graphics.position.set(x, y);
     graphics.rotation = angleRad;
 

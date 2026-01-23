@@ -6,7 +6,8 @@ import {
   COLLISION_GROUP,
   NET_BORDER_COLOR,
   NET_BORDER_WIDTH,
-  NET_BORDER_ALPHA
+  NET_BORDER_ALPHA,
+  Z_INDEX
 } from '../config';
 import type { NetConfig } from '../levels/LevelSchema';
 
@@ -64,6 +65,7 @@ export class Net {
 
   static createVisual(config: NetConfig): PIXI.Container {
     const graphics = new PIXI.Container();
+    graphics.zIndex = Z_INDEX.NET;
 
     graphics.x = config.x;
     graphics.y = config.y;

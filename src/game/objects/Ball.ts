@@ -13,6 +13,7 @@ import {
   BALL_RESTITUTION,
   BALL_COLORS,
   COLLISION_GROUP,
+  Z_INDEX,
 } from '../config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 
@@ -80,6 +81,7 @@ export class Ball {
    */
   static createVisual(x: number, y: number, type: BallType): PIXI.Graphics {
     const graphics = new PIXI.Graphics();
+    graphics.zIndex = Z_INDEX.BALL;
     const color = BALL_COLORS[type];
 
     graphics.circle(0, 0, BALL_RADIUS);

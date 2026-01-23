@@ -6,7 +6,7 @@
 import * as PIXI from 'pixi.js';
 import RAPIER from '@dimforge/rapier2d-compat';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
-import { SCALE, COLLISION_GROUP } from '../config';
+import { SCALE, COLLISION_GROUP, Z_INDEX } from '../config';
 import type { LaserConfig } from '../levels/LevelSchema';
 
 // How often the laser flips (in seconds)
@@ -127,6 +127,7 @@ export class Laser {
 
     // Create container positioned at the start point
     const graphics = new PIXI.Container();
+    graphics.zIndex = Z_INDEX.LASER;
     // Position/rotation will be handled by update(), but initial setup is nice
     const centerX = (x1 + x2) / 2;
     const centerY = (y1 + y2) / 2;

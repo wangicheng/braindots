@@ -203,3 +203,22 @@ export const CATEGORY = {
   FALLING_OBJECT: 0x0040,
   NET: 0x0080,
 };
+
+// Rendering Order (Z-Index)
+// Lower values are rendered first (at the bottom)
+export const Z_INDEX = {
+  BACKGROUND: 0,
+  BUTTON: 10,
+  DRAWN_LINE: 20,
+  LASER: 30,
+  SEESAW: 40,
+  BALL: 50,
+  ICE_BLOCK: 60,
+  OBSTACLE: 70,
+  FALLING_OBJECT: 80,
+  CONVEYOR_BELT: 90,
+  NET: 100,
+  // UI / Overlay elements
+  UI_OVERLAY: 1000,
+  DRAG_PREVIEW: 2000,
+};

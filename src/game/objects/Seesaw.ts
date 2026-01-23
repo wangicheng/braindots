@@ -11,6 +11,7 @@ import {
   SEESAW_PIVOT_STIFFNESS,
   SEESAW_PIVOT_DAMPING,
   COLLISION_GROUP,
+  Z_INDEX,
 } from '../config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { SeesawConfig } from '../levels/LevelSchema';
@@ -155,6 +156,7 @@ export class Seesaw {
 
     // Create main container (rotation handled by parent in editor)
     const graphics = new PIXI.Container();
+    graphics.zIndex = Z_INDEX.SEESAW;
     graphics.position.set(x, y);
 
     // Create Plank Graphics

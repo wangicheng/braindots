@@ -7,6 +7,7 @@ import {
   FALLING_OBJECT_RESTITUTION,
   FALLING_OBJECT_DENSITY,
   COLLISION_GROUP,
+  Z_INDEX,
 } from '../config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { FallingObjectConfig } from '../levels/LevelSchema';
@@ -161,6 +162,7 @@ export class FallingObject {
     const effectiveAngle = type === 'circle' ? 0 : angle;
 
     const graphics = new PIXI.Graphics();
+    graphics.zIndex = Z_INDEX.FALLING_OBJECT;
     graphics.position.set(x, y);
     graphics.rotation = (effectiveAngle * Math.PI) / 180;
 
