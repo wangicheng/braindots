@@ -19,8 +19,6 @@ export interface UserProfile {
 export class LevelService {
   private static instance: LevelService;
 
-  // Fake authors data
-
   private publishedLevelIds: Set<string> = new Set();
   private likedLevelIds: Set<string> = new Set();
   private deletedLevelIds: Set<string> = new Set();
@@ -115,17 +113,16 @@ export class LevelService {
    * Get specific level data by ID
    */
   public async getLevelData(levelId: string): Promise<LevelData | null> {
-    await new Promise(resolve => setTimeout(resolve, 100));
+
 
     const all = await this.getLevelList();
     return all.find(l => l.id === levelId) || null;
   }
 
   /**
-   * Simulate uploading a level
+   * Upload/Save a level locally
    */
   public async uploadLevel(level: LevelData): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 500));
 
     const stored = this.getStoredLevels();
     const index = stored.findIndex(l => l.id === level.id);
@@ -149,7 +146,7 @@ export class LevelService {
    * Publish a level
    */
   public async publishLevel(levelId: string): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 300));
+
     this.publishedLevelIds.add(levelId);
 
     // We do NOT store isPublished state locally.
@@ -193,12 +190,12 @@ export class LevelService {
   }
 
   public async deleteLevel(levelId: string): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 300));
+
 
     const stored = this.getStoredLevels();
     const index = stored.findIndex(l => l.id === levelId);
 
-    // Always track as deleted even if not in storage (for mock built-ins)
+    // Always track as deleted even if not in storage
     this.deletedLevelIds.add(levelId);
     localStorage.setItem(DELETED_KEY, JSON.stringify(Array.from(this.deletedLevelIds)));
 

@@ -485,7 +485,7 @@ export class LevelSelectionUI extends PIXI.Container {
     // Always show an avatar to allow access to User Profile Card (Delete/Like)
     // Placed HERE (end of function) to ensure it is above the dark overlay for unpublished levels
 
-    // Mocking a user avatar with a colored circle
+    // Generating a default user avatar with a colored circle
     const avatarRadius = scale(25);
     // Hash authorId to get consistent color
     const colors = [0xFF6B6B, 0x4ECDC4, 0x45B7D1, 0xFFBE76, 0xFF7979, 0xBADC58];
@@ -664,13 +664,6 @@ export class LevelSelectionUI extends PIXI.Container {
   private scrollToPage(pageIndex: number): void {
     const canvasWidth = getCanvasWidth();
     const targetX = -pageIndex * canvasWidth;
-
-    // Simple tween
-    // Since we don't have a tween engine installed (probably), let's just slide using a ticker or CSS-like transition?
-    // Pixi doesn't have built-in tween. 
-    // Simple tween
-    // Pixi doesn't have built-in tween. 
-    // Snapping is acceptable for MVP, smooth slide is better.
 
     // Manual rudimentary tween
     const startX = this.gridContainer.x;

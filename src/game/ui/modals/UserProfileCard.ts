@@ -220,12 +220,19 @@ export class UserProfileCard extends PIXI.Container {
 
     // User Stats (Total Levels)
     const statsText = new PIXI.Text({
-      text: t('profile.total_levels') + '42',
+      text: t('profile.total_levels') + '...',
       style: { fontFamily: 'Arial', fontSize: scale(14), fill: '#AAAAAA', align: 'center' }
     });
     statsText.anchor.set(0.5, 0);
     statsText.position.set(centerX, topY);
     rightCol.addChild(statsText);
+
+    // Fetch Level Count
+    LevelService.getInstance().getLevelList().then(levels => {
+      if (statsText.destroyed) return;
+      const count = levels.filter(l => l.authorId === this.levelData.authorId).length;
+      statsText.text = t('profile.total_levels') + count.toString();
+    });
 
     // View Levels / Delete Button
     const profile = LevelService.getInstance().getUserProfile();
