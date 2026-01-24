@@ -17,8 +17,16 @@ jobs:
       issues: write
 
     steps:
-      - name: Checkout Code
+      - name: Checkout Code (Main)
         uses: actions/checkout@v4
+        with:
+          path: main
+
+      - name: Checkout Database Branch
+        uses: actions/checkout@v4
+        with:
+          ref: database
+          path: db_branch
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -26,26 +34,27 @@ jobs:
           node-version: '20'
 
       - name: Install Dependencies
+        working-directory: ./main
         run: npm ci
-        # If npm ci fails (because of package-lock mismatch or something), fallback to npm install
-        # run: npm install
 
       - name: Process Issue
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATA_FILE_PATH: ${{ github.workspace }}/db_branch/data.json
+        working-directory: ./main
         run: node scripts/process_issue.cjs
 
-      - name: Commit and Push
+      - name: Commit and Push Database
+        working-directory: ./db_branch
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add public/db/data.json
-          # Check if there are changes before committing to avoid empty commit errors
+          git add data.json
           if git diff --staged --quiet; then
             echo "No changes to commit."
           else
             git commit -m "Update data from Issue #${{ github.event.issue.number }}"
-            git push
+            git push origin database
           fi
 
       - name: Close Issue
