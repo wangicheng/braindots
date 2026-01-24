@@ -133,7 +133,11 @@ async function run() {
         const initialCount = user.levels.length;
         const targetId = String(validatedPayload.id);
 
-        user.levels = user.levels.filter(l => String(l.id) !== targetId);
+        user.levels = user.levels.filter(l => {
+          const matchOriginal = l.originalId && String(l.originalId) === targetId;
+          const matchId = String(l.id) === targetId;
+          return !(matchOriginal || matchId);
+        });
 
         if (user.levels.length === initialCount) {
           console.warn(`WARNING: Level with ID ${targetId} not found for deletion.`);
