@@ -74,7 +74,7 @@ export class Net {
     }
 
     // Create tiling sprite for the net pattern
-    const texture = PIXI.Texture.from('/net.svg');
+    const texture = PIXI.Texture.from(import.meta.env.BASE_URL + 'net.svg');
     const sprite = new PIXI.TilingSprite({
       texture,
       width: config.width,

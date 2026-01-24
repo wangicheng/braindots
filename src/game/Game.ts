@@ -153,9 +153,9 @@ export class Game {
     });
 
     // Load assets
-    await PIXI.Assets.load('/net.svg');
-    await PIXI.Assets.load('/gear.svg');
-    this.laserTexture = await PIXI.Assets.load('/laser.svg');
+    await PIXI.Assets.load(import.meta.env.BASE_URL + 'net.svg');
+    await PIXI.Assets.load(import.meta.env.BASE_URL + 'gear.svg');
+    this.laserTexture = await PIXI.Assets.load(import.meta.env.BASE_URL + 'laser.svg');
 
     console.log('Pixi initialized, adding canvas...');
     // Add canvas to DOM

@@ -177,7 +177,7 @@ export class ConveyorBelt {
     const gearDiameter = height * 0.65; // Matches previous visual size
 
     const createGearSprite = () => {
-      const gear = PIXI.Sprite.from('/gear.svg');
+      const gear = PIXI.Sprite.from(import.meta.env.BASE_URL + 'gear.svg');
       gear.anchor.set(0.5);
       gear.width = gearDiameter;
       gear.height = gearDiameter;
