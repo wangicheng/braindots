@@ -1,0 +1,79 @@
+name: Process Data Submission
+
+on:
+  issues:
+    types: [opened, edited]
+
+concurrency:
+  group: data-processing
+  cancel-in-progress: false
+
+jobs:
+  process:
+    if: contains(github.event.issue.labels.*.name, 'data-submission')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm ci
+        # If npm ci fails (because of package-lock mismatch or something), fallback to npm install
+        # run: npm install
+
+      - name: Process Issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/process_issue.cjs
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/db/data.json
+          # Check if there are changes before committing to avoid empty commit errors
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update data from Issue #${{ github.event.issue.number }}"
+            git push
+          fi
+
+      - name: Close Issue
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '✅ Data processed successfully! The database has been updated.'
+            });
+            github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              state: 'closed'
+            });
+
+      - name: Handle Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '❌ Processing failed. Please check the action logs for details.'
+            });

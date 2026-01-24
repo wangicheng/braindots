@@ -1,0 +1,34 @@
+name: Data Submission
+description: Submit or update user data (Profile, Levels).
+title: "[Data]: "
+labels: ["data-submission"]
+body:
+  - type: input
+    id: username
+    attributes:
+      label: Username
+      description: Your unique username.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: action
+    attributes:
+      label: Action Type
+      options:
+        - update_profile
+        - publish_level
+        - delete_level
+    validations:
+      required: true
+      
+  - type: textarea
+    id: payload
+    attributes:
+      label: JSON Payload
+      description: |
+        For update_profile: {"avatar": "url"}
+        For publish_level: {"id": "lvl1", "data": {...}}
+        For delete_level: {"id": "lvl1"}
+    validations:
+      required: true
