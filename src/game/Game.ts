@@ -2413,7 +2413,8 @@ export class Game {
           y: designY,
           angle: 0,
           points: [{ x: 50, y: -50 }, { x: 50, y: 50 }, { x: -50, y: 0 }],
-          thickness: 20
+          thickness: 20,
+          cap: 'round'
         };
       } else if (subType === 'bezier') {
         newObj = {
@@ -2422,7 +2423,8 @@ export class Game {
           y: designY,
           angle: 0,
           points: [{ x: -60, y: 20 }, { x: 0, y: -40 }, { x: 60, y: 20 }], // Start, Middle (on-curve), End
-          thickness: 20
+          thickness: 20,
+          cap: 'round'
         };
       } else {
         // Default to rectangle
@@ -2473,7 +2475,7 @@ export class Game {
         case 'ice':
           if (!this.editingLevel.iceBlocks) this.editingLevel.iceBlocks = [];
           list = this.editingLevel.iceBlocks;
-          newObj = { x: designX, y: designY, width: 100, height: 100, meltTime: 1 };
+          newObj = { x: designX, y: designY, width: 100, height: 100, meltTime: 1, angle: 0 };
           visual = IceBlock.createVisual(newObj);
           break;
         case 'laser':

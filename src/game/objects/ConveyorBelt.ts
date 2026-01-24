@@ -47,7 +47,7 @@ export class ConveyorBelt {
     } = config;
 
     this.acceleration = acceleration;
-    this.maxVelocity = config.maxVelocity ?? (Math.abs(acceleration) * CONVEYOR_BELT_VELOCITY_FACTOR);
+    this.maxVelocity = Math.abs(acceleration) * CONVEYOR_BELT_VELOCITY_FACTOR;
 
     this.height = CONVEYOR_BELT_HEIGHT;
     this.radius = this.height / 2;
