@@ -720,20 +720,31 @@ export class Game {
           currentLevel.isPublished = true;
 
           // Prepare IssueOps Data
-          // Sanitize data (remove local tracking metrics)
-          const { likes, isPublished, authorPassed, attempts, clears, isLikedByCurrentUser, ...cleanData } = currentLevel;
+          // Sanitize data (remove local tracking metrics and redundant fields)
+          const {
+            likes,
+            isPublished,
+            authorPassed,
+            attempts,
+            clears,
+            isLikedByCurrentUser,
+            id,
+            createdAt,
+            ...otherData
+          } = currentLevel;
 
-          const payloadObj = { id: currentLevel.id, data: cleanData };
+          // User requested not to include ID in the issue content. 
+          // The ID will be assigned by the workflow.
+          const payloadObj = { data: otherData };
           const payloadStr = JSON.stringify(payloadObj);
 
           // Construct URL
           const repo = 'wangicheng/opendots'; // Hardcoded for now, or move to config
           const baseUrl = `https://github.com/${repo}/issues/new`;
           const params = new URLSearchParams({
-            template: 'submission.yml',
+            template: 'publish_level.yml',
             title: `[Data]: Publish Level ${currentLevel.id}`,
             labels: 'data-submission',
-            action: 'publish_level',
             payload: payloadStr
           });
 
@@ -744,10 +755,9 @@ export class Game {
             // Fallback for huge levels: Copy payload to clipboard
             await navigator.clipboard.writeText(payloadStr);
             const fallbackParams = new URLSearchParams({
-              template: 'submission.yml',
+              template: 'publish_level.yml',
               title: `[Data]: Publish Level ${currentLevel.id}`,
-              labels: 'data-submission',
-              action: 'publish_level'
+              labels: 'data-submission'
             });
             const fallbackUrl = `${baseUrl}?${fallbackParams.toString()}`;
 

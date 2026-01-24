@@ -777,9 +777,29 @@ export class LevelSelectionUI extends PIXI.Container {
       },
       */
       (levelId) => {
+        if (levelData.isPublished) {
+          // GitHub IssueOps Delete
+          const realId = (levelData as any).originalId || levelId;
+          const payload = { id: realId };
+          const payloadStr = JSON.stringify(payload);
+
+          const repo = 'wangicheng/opendots';
+          const baseUrl = `https://github.com/${repo}/issues/new`;
+          const params = new URLSearchParams({
+            template: 'delete_level.yml',
+            title: `[Data]: Delete Level ${realId}`,
+            labels: 'data-submission',
+            payload: payloadStr
+          });
+
+          window.open(`${baseUrl}?${params.toString()}`, '_blank');
+        }
+
         LevelService.getInstance().deleteLevel(levelId);
         this.closeUserProfile();
         // Remove locally to update UI immediately without re-fetching
+        // If it was published, it might technically reappear on refresh until the issue is processed and merged, 
+        // but removing it gives immediate feedback.
         this.levels = this.levels.filter(l => l.id !== levelId);
         this.refreshVisibleLevels();
       },

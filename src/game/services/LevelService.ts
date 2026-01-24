@@ -52,11 +52,15 @@ export class LevelService {
    */
   public async getLevelList(): Promise<LevelData[]> {
     // 1. Get Local Levels (Drafts, Untested, Your works)
-    const localLevels = this.getStoredLevels();
+    // Filter out published levels from local storage, as we want to source them from GitHub
+    const localLevels = this.getStoredLevels().filter(l => !l.isPublished);
 
-    // Ensure "draft_level_01" exists if not present
+    // Ensure "draft_level_01" exists if not present (and not published check handled above implicitly if new)
     const draftId = 'draft_level_01';
+    // Check if we need to revive the draft
     if (!localLevels.find(l => l.id === draftId)) {
+      // Only add default draft if it's not supposedly published/replaced?
+      // For now, keep the draft logic simple
       const draftLevel: LevelData = {
         ...this.builtinLevels[0],
         id: draftId,
@@ -68,7 +72,12 @@ export class LevelService {
         isPublished: false,
         authorPassed: false
       };
-      localLevels.unshift(draftLevel);
+
+      // Check if this draft ID exists in storedLevels (it might have been excluded above)
+      const stored = this.getStoredLevels();
+      if (!stored.find(l => l.id === draftId)) {
+        localLevels.unshift(draftLevel);
+      }
     }
 
     // 2. Fetch Remote Levels (Community)
@@ -85,16 +94,16 @@ export class LevelService {
               user.levels.forEach((level: any) => {
                 // Validate level data integrity if needed
 
-                // Prevent remote levels from impersonating the local user
-                if (username === CURRENT_USER_ID) {
-                  return;
-                }
-
                 // Namespace ID to prevent collision and ensure ownership
                 // Format: username#original_id
                 const namespacedLevel = {
                   ...level,
-                  id: `${username}#${level.id}`, // Composite ID
+                  // If the level has an ID from the issue (e.g. numeric), preserve it or namespace it?
+                  // The user wants the issue ID to be the level ID.
+                  // Assuming the DB stores the level with the issue ID as its ID.
+                  // We might still namespace it to be safe, or trust the ID if unique enough.
+                  // Let's stick to namespacing to avoid collision with local drafts.
+                  id: `${username}#${level.id}`,
                   originalId: level.id,
                   author: username, // Force author name to be the GitHub username
                   authorId: username, // Force authorId to be the GitHub username
@@ -110,6 +119,7 @@ export class LevelService {
     } catch (e) {
       console.warn('Failed to fetch community levels', e);
     }
+
 
     // 3. Combine
     // Local levels take precedence? Or kept separate?

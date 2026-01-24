@@ -44,4 +44,5 @@ export const en = {
   'pen.names.roller': 'Roller',
   'pen.names.cranetrack': 'Crane Track',
   'common.go_to_github': 'Go to GitHub',
+  'profile.warn_large_payload': 'Data is large. Proceed to GitHub?',
 };

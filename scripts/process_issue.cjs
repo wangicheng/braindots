@@ -1,4 +1,3 @@
-
 const fs = require('fs');
 const path = require('path');
 const core = require('@actions/core');
@@ -12,10 +11,11 @@ const DATA_FILE = path.join(__dirname, '../public/db/data.json');
 const PayloadSchemas = {
   update_profile: z.object({
     avatar: z.string().optional(),
+    name: z.string().optional(),
   }),
   publish_level: z.object({
-    id: z.string(),
-    data: z.any(), // Allow any structure for level data for now, or refine if needed
+    id: z.string().optional(),
+    data: z.any(),
   }),
   delete_level: z.object({
     id: z.string(),
@@ -55,11 +55,11 @@ async function run() {
   try {
     const token = process.env.GITHUB_TOKEN;
     if (!token) {
-      throw new Error('GITHUB_TOKEN is missing');
+      // Local dev fallback or warning
+      // throw new Error('GITHUB_TOKEN is missing');
     }
 
     // In a real action, standard 'github.context.payload.issue' works.
-    // For local testing, we might mock it.
     const context = github.context;
     const issue = context.payload.issue;
 
@@ -98,7 +98,7 @@ async function run() {
 
     // Load DB
     if (!fs.existsSync(DATA_FILE)) {
-      // Should exist, but init if not
+      fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
       fs.writeFileSync(DATA_FILE, JSON.stringify({ users: {} }, null, 2));
     }
     const db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
@@ -115,23 +115,26 @@ async function run() {
         if (validatedPayload.avatar !== undefined) {
           user.avatar = validatedPayload.avatar;
         }
+        if (validatedPayload.name !== undefined) {
+          user.name = validatedPayload.name;
+        }
         break;
 
       case 'publish_level':
-        // Check if level exists, update it, or add new
-        const existingLevelIndex = user.levels.findIndex(l => l.id === validatedPayload.id);
+        // Use Issue Number as the Level ID
+        const levelId = issue.number.toString();
+
         const levelData = {
-          id: validatedPayload.id,
-          ...validatedPayload.data, // Spread the level content
+          id: levelId,
+          ...validatedPayload.data,
+          publishAt: Date.now(),
           updatedAt: new Date().toISOString()
         };
 
-        // Sanctitize: Remove prohibited fields if they somehow snuck in (though we only take what's in 'data' + id)
-        // If 'data' contains metrics, we might want to strip them explicitly if the user requirements are strict.
-        // For now, assuming 'data' is just the game level structure.
+        const existingIndex = user.levels.findIndex(l => l.id === levelId);
 
-        if (existingLevelIndex >= 0) {
-          user.levels[existingLevelIndex] = levelData;
+        if (existingIndex >= 0) {
+          user.levels[existingIndex] = levelData;
         } else {
           user.levels.push(levelData);
         }

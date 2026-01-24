@@ -1,0 +1,22 @@
+name: Delete Level
+description: Delete an existing level.
+title: "[Data]: Delete Level"
+labels: ["data-submission"]
+body:
+  - type: dropdown
+    id: action_type
+    attributes:
+      label: Action Type
+      options:
+        - delete_level
+    validations:
+      required: true
+      
+  - type: textarea
+    id: payload
+    attributes:
+      label: Payload
+      description: |
+        {"id": "level_id"}
+    validations:
+      required: true

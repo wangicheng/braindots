@@ -229,6 +229,43 @@ export class SettingsUI extends PIXI.Container {
     editIcon.position.set(inputX + inputW - scale(10), inputY + inputH / 2 + scale(2));
     editIcon.eventMode = 'none'; // Allow clicks to pass through to background
     this.card.addChild(editIcon);
+
+    // Save to Cloud Button
+    const btnY = inputY + inputH + scale(40);
+    const saveBtn = UIFactory.createButton(
+      'Cloud Save', // Using hardcoded English temporarily or need a key
+      width - scale(80),
+      scale(40),
+      0xF4A045, // Orange
+      '#FFFFFF',
+      () => {
+        const repo = 'wangicheng/opendots';
+        const baseUrl = `https://github.com/${repo}/issues/new`;
+
+        const payloadData: any = {};
+        if (profile.name) payloadData.name = profile.name;
+        if (profile.avatarUrl) payloadData.avatar = profile.avatarUrl;
+
+        const payloadStr = JSON.stringify(payloadData);
+
+        // Warn if payload is too big (mostly due to avatar)
+        if (payloadStr.length > 5000) {
+          const proceed = window.confirm(t('profile.warn_large_payload') || 'Data is large. Proceed to GitHub?');
+          if (!proceed) return;
+        }
+
+        const params = new URLSearchParams({
+          template: 'update_profile.yml',
+          title: '[Data]: Update Profile',
+          labels: 'data-submission',
+          payload: payloadStr
+        });
+
+        window.open(`${baseUrl}?${params.toString()}`, '_blank');
+      }
+    );
+    saveBtn.position.set(width / 2, btnY);
+    this.card.addChild(saveBtn);
   }
 
   private drawLanguageView(width: number): void {

@@ -1,0 +1,22 @@
+name: Publish Level
+description: Publish a new level.
+title: "[Data]: Publish Level"
+labels: ["data-submission"]
+body:
+  - type: dropdown
+    id: action_type
+    attributes:
+      label: Action Type
+      options:
+        - publish_level
+    validations:
+      required: true
+      
+  - type: textarea
+    id: payload
+    attributes:
+      label: Payload
+      description: |
+        JSON Data for the level.
+    validations:
+      required: true
