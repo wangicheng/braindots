@@ -1,0 +1,13 @@
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <!-- 白色臉部 (直徑 170) -->
+  <circle cx="96" cy="96" r="85" fill="white"/>
+  
+  <!-- 左眼 (藍色 #3DBEEF, 直徑 33) -->
+  <circle cx="64" cy="82" r="16.5" fill="#3DBEEF"/>
+  
+  <!-- 右眼 (粉色 #ED86B4, 直徑 33) -->
+  <circle cx="128" cy="82" r="16.5" fill="#ED86B4"/>
+  
+  <!-- 笑臉 (灰色 #555555) -->
+  <path d="M56 125 Q96 165 136 125" fill="none" stroke="#555555" stroke-width="14" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 定義基礎圖形：旋轉 45 度的正方形，中心在 (0,0) -->
+    <!-- 圓角 rx="4" 用來模擬圖片中轉角處稍微圓潤的效果 -->
+    <rect id="diamond" x="-17" y="-17" width="34" height="34" rx="4" 
+          transform="rotate(45)" fill="none" stroke="#808080" stroke-width="1" />
+  </defs>
+
+  <!-- 1. 中間的主體 -->
+  <use href="#diamond" x="20" y="20" />
+
+  <!-- 2. 四個方向的補償 (模擬凸出去的部分從另一邊繞回來) -->
+  <use href="#diamond" x="20" y="-20" /> <!-- 上方補償 -->
+  <use href="#diamond" x="20" y="60" />  <!-- 下方補償 -->
+  <use href="#diamond" x="-20" y="20" /> <!-- 左方補償 -->
+  <use href="#diamond" x="60" y="20" />  <!-- 右方補償 -->
+</svg>
