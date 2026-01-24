@@ -4,7 +4,7 @@ const core = require('@actions/core');
 const github = require('@actions/github');
 const { z } = require('zod');
 
-const DATA_FILE = path.join(__dirname, '../public/db/data.json');
+const DATA_FILE = process.env.DATA_FILE_PATH || path.join(__dirname, '../public/db/data.json');
 
 // --- Schemas ---
 
