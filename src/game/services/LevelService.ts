@@ -1,11 +1,5 @@
 import type { LevelData } from '../levels/LevelSchema';
 import level1 from '../levels/level1.json';
-import level2 from '../levels/level2.json';
-import level3 from '../levels/level3.json';
-import level4 from '../levels/level4.json';
-import level5 from '../levels/level5.json';
-import level6 from '../levels/level6.json';
-import level7 from '../levels/level7.json';
 
 // Local storage key for custom levels
 const STORAGE_KEY = 'opendots_custom_levels';
@@ -21,28 +15,16 @@ export interface UserProfile {
   avatarUrl?: string;
 }
 
-export class MockLevelService {
-  private static instance: MockLevelService;
+export class LevelService {
+  private static instance: LevelService;
 
   // Fake authors data
-  private startTimestamp: number = Date.now() - 1000 * 60 * 60 * 24 * 30; // 30 days ago
-  private authors = [
-    { name: 'Alice', id: 'user_alice' },
-    { name: 'Bob', id: 'user_bob' },
-    { name: 'Charlie', id: 'user_charlie' },
-    { name: 'Me', id: CURRENT_USER_ID }
-  ];
+
   private publishedLevelIds: Set<string> = new Set();
   private likedLevelIds: Set<string> = new Set();
   private deletedLevelIds: Set<string> = new Set();
   private builtinLevels: LevelData[] = [
-    level1 as unknown as LevelData,
-    level2 as unknown as LevelData,
-    level3 as unknown as LevelData,
-    level4 as unknown as LevelData,
-    level5 as unknown as LevelData,
-    level6 as unknown as LevelData,
-    level7 as unknown as LevelData
+    level1 as unknown as LevelData
   ];
 
   private constructor() {
@@ -50,18 +32,18 @@ export class MockLevelService {
     this.loadDeleted();
 
     // Ensure "Me" is replaced with actual profile name
-    const profile = this.getUserProfile();
-    const meIndex = this.authors.findIndex(a => a.id === CURRENT_USER_ID);
-    if (meIndex >= 0) {
-      this.authors[meIndex].name = profile.name;
-    }
+    // const profile = this.getUserProfile();
+    // const meIndex = this.authors.findIndex(a => a.id === CURRENT_USER_ID);
+    // if (meIndex >= 0) {
+    //   this.authors[meIndex].name = profile.name;
+    // }
   }
 
-  public static getInstance(): MockLevelService {
-    if (!MockLevelService.instance) {
-      MockLevelService.instance = new MockLevelService();
+  public static getInstance(): LevelService {
+    if (!LevelService.instance) {
+      LevelService.instance = new LevelService();
     }
-    return MockLevelService.instance;
+    return LevelService.instance;
   }
 
   /**
@@ -69,90 +51,73 @@ export class MockLevelService {
    * Treating them all as "Community Levels"
    */
   public async getLevelList(): Promise<LevelData[]> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 200));
+    // 1. Get Local Levels (Drafts, Untested, Your works)
+    const localLevels = this.getStoredLevels();
 
-    const storedLevels = this.getStoredLevels();
-
-    // Combine built-in (treated as user uploads) and actual local "uploads"
-    const rawList = [...this.builtinLevels, ...storedLevels];
-
-    // Inject mock metadata for sorting/filtering demo if missing
-    const list = rawList.map((level, index) => {
-      if (!level.author) {
-        // Deterministic mock data assignment based on index
-        const authorObj = this.authors[index % this.authors.length];
-        // Random-ish date and likes based on index to keep order consistent across reloads
-        // Newest levels at the end of list usually, let's mix it up slightly
-        const timeOffset = (index * 1234567) % (1000 * 60 * 60 * 24 * 30);
-
-        return {
-          ...level,
-          author: authorObj.name,
-          authorId: authorObj.id,
-          createdAt: this.startTimestamp + timeOffset,
-          likes: Math.floor((Math.sin(index) + 1) * 500) + (this.likedLevelIds.has(level.id) ? 1 : 0),
-          attempts: Math.floor(Math.random() * 1000) + 50,
-          clears: Math.floor(Math.random() * 50),
-          isPublished: this.publishedLevelIds.has(level.id) || true, // Default to published for everything else
-          authorPassed: true,
-          isLikedByCurrentUser: this.likedLevelIds.has(level.id)
-        };
-      }
-      return level;
-    });
-
-    // Check if draft_level_01 exists in stored levels (so we persist changes to it)
-    const storedDraftIndex = storedLevels.findIndex(l => l.id === 'draft_level_01');
-    let draftLevel: LevelData;
-
-    if (storedDraftIndex >= 0) {
-      draftLevel = storedLevels[storedDraftIndex];
-      // Remove it from the stored list so we don't duplicate it when we append ...list (which includes storedLevels)
-      // Actually 'list' = rawList (builtin + stored) -> mapped.
-      // We need to be careful. 'list' contains mapped versions of storedLevels.
-    } else {
-      draftLevel = {
+    // Ensure "draft_level_01" exists if not present
+    const draftId = 'draft_level_01';
+    if (!localLevels.find(l => l.id === draftId)) {
+      const draftLevel: LevelData = {
         ...this.builtinLevels[0],
-        id: 'draft_level_01',
+        id: draftId,
         author: this.getUserProfile().name,
         authorId: CURRENT_USER_ID,
         createdAt: Date.now(),
-        likes: 0,
         attempts: 0,
         clears: 0,
-        isPublished: this.publishedLevelIds.has('draft_level_01') || false,
-        authorPassed: false,
-        isLikedByCurrentUser: this.likedLevelIds.has('draft_level_01')
+        isPublished: false,
+        authorPassed: false
       };
+      localLevels.unshift(draftLevel);
     }
 
-    // Add multiple mock levels for the current user to test the 6-item layout
-    const userLevels: LevelData[] = [];
-    const profileName = this.getUserProfile().name;
-    for (let i = 1; i <= 5; i++) {
-      const id = `mock_user_level_${i}`;
-      userLevels.push({
-        ...this.builtinLevels[i % this.builtinLevels.length],
-        id: id,
-        author: profileName,
-        authorId: CURRENT_USER_ID,
-        createdAt: Date.now() - (i * 1000 * 60 * 60), // Decreasing time
-        likes: i * 10,
-        attempts: i * 20 + 5,
-        clears: i * 5,
-        isPublished: this.publishedLevelIds.has(id) || (i > 2), // Some published, some drafts
-        authorPassed: i > 1,  // Some tested, some not
-        isLikedByCurrentUser: this.likedLevelIds.has(id)
-      });
+    // 2. Fetch Remote Levels (Community)
+    let remoteLevels: LevelData[] = [];
+    try {
+      const DB_URL = 'https://raw.githubusercontent.com/wangicheng/opendots/database/data.json';
+      const res = await fetch(DB_URL);
+      if (res.ok) {
+        const db = await res.json();
+        if (db.users) {
+          Object.keys(db.users).forEach(username => {
+            const user = db.users[username];
+            if (user.levels && Array.isArray(user.levels)) {
+              user.levels.forEach((level: any) => {
+                // Validate level data integrity if needed
+
+                // Prevent remote levels from impersonating the local user
+                if (username === CURRENT_USER_ID) {
+                  return;
+                }
+
+                // Namespace ID to prevent collision and ensure ownership
+                // Format: username#original_id
+                const namespacedLevel = {
+                  ...level,
+                  id: `${username}#${level.id}`, // Composite ID
+                  originalId: level.id,
+                  author: username, // Force author name to be the GitHub username
+                  authorId: username, // Force authorId to be the GitHub username
+                  isPublished: true, // It is from the public DB
+                  isLikedByCurrentUser: false // Reset for generic
+                };
+                remoteLevels.push(namespacedLevel as LevelData);
+              });
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch community levels', e);
     }
 
-    // Filter out draft_level_01 from 'list' if it's there
-    const filteredList = list.filter(l => l.id !== 'draft_level_01');
+    // 3. Combine
+    // Local levels take precedence? Or kept separate?
+    // Current UI merges them.
+    // Filter out deleted
+    const all = [...localLevels, ...remoteLevels].filter(l => !this.deletedLevelIds.has(l.id));
 
-    // Insert draftLevel and userLevels at the beginning
-    const final = [draftLevel, ...userLevels, ...filteredList];
-    return final.filter(l => !this.deletedLevelIds.has(l.id));
+    return all;
   }
 
   /**
@@ -289,10 +254,10 @@ export class MockLevelService {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(updated));
 
     // Also update hardcoded authors list if needed
-    const meIndex = this.authors.findIndex(a => a.id === CURRENT_USER_ID);
-    if (meIndex >= 0) {
-      this.authors[meIndex].name = updated.name;
-    }
+    // const meIndex = this.authors.findIndex(a => a.id === CURRENT_USER_ID);
+    // if (meIndex >= 0) {
+    //   this.authors[meIndex].name = updated.name;
+    // }
 
     // Update author name in all stored levels owned by current user
     if (data.name) {

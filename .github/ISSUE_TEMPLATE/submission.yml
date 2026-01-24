@@ -3,14 +3,6 @@ description: Submit or update user data (Profile, Levels).
 title: "[Data]: "
 labels: ["data-submission"]
 body:
-  - type: input
-    id: username
-    attributes:
-      label: Username
-      description: Your unique username.
-    validations:
-      required: true
-
   - type: dropdown
     id: action
     attributes:

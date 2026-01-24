@@ -43,4 +43,5 @@ export const zhTW = {
   'pen.names.brush': '毛筆',
   'pen.names.roller': '滾輪',
   'pen.names.cranetrack': '履帶',
+  'common.go_to_github': '前往 GitHub',
 };

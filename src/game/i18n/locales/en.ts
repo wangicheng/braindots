@@ -43,4 +43,5 @@ export const en = {
   'pen.names.brush': 'Brush',
   'pen.names.roller': 'Roller',
   'pen.names.cranetrack': 'Crane Track',
+  'common.go_to_github': 'Go to GitHub',
 };

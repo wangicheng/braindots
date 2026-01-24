@@ -2,7 +2,7 @@
 import * as PIXI from 'pixi.js';
 import { getCanvasWidth, getCanvasHeight, scale } from '../../config';
 import type { LevelData } from '../../levels/LevelSchema';
-import { CURRENT_USER_ID, MockLevelService } from '../../services/MockLevelService';
+import { CURRENT_USER_ID, LevelService } from '../../services/LevelService';
 import { ConfirmDialog } from './ConfirmDialog';
 import { UIFactory } from '../UIFactory';
 import { LanguageManager, type TranslationKey } from '../../i18n/LanguageManager';
@@ -10,7 +10,7 @@ import { LanguageManager, type TranslationKey } from '../../i18n/LanguageManager
 export class UserProfileCard extends PIXI.Container {
   private onCloseCallback: () => void;
   private onViewLevelsCallback: (userId: string) => void;
-  private onLikeToggleCallback?: () => void;
+  // private onLikeToggleCallback?: () => void; // Unused for now
   private onDeleteCallback?: (levelId: string) => void;
   private allowDelete: boolean;
   private levelData: LevelData;
@@ -23,7 +23,7 @@ export class UserProfileCard extends PIXI.Container {
     getThumbnail: (width: number, height: number) => PIXI.Container,
     onClose: () => void,
     onViewLevels: (userId: string) => void,
-    onLikeToggle?: () => void,
+    // onLikeToggle?: () => void,
     onDelete?: (levelId: string) => void,
     allowDelete: boolean = false
   ) {
@@ -33,7 +33,7 @@ export class UserProfileCard extends PIXI.Container {
     this.getThumbnail = getThumbnail;
     this.onCloseCallback = onClose;
     this.onViewLevelsCallback = onViewLevels;
-    this.onLikeToggleCallback = onLikeToggle;
+    // this.onLikeToggleCallback = onLikeToggle;
     this.onDeleteCallback = onDelete;
     this.allowDelete = allowDelete;
 
@@ -158,7 +158,8 @@ export class UserProfileCard extends PIXI.Container {
     // 2b. Like Button (Right of Stats)
     const likeBtnWidth = scale(100);
     const likeBtnHeight = scale(36);
-    const likeBtn = this.createLikeButton(this.levelData.likes || 0, likeBtnWidth, likeBtnHeight);
+    // Force likes to 0 and disable interaction logic inside createLikeButton or visual only
+    const likeBtn = this.createLikeButton(0, likeBtnWidth, likeBtnHeight);
 
     // Position Like button at the right edge of the left column
     // Vertically center with the text stats block (roughly 75px height)
@@ -191,7 +192,7 @@ export class UserProfileCard extends PIXI.Container {
     let profileColor = this.userColor;
     let profileUrl: string | undefined;
     if (this.levelData.authorId === CURRENT_USER_ID) {
-      const profile = MockLevelService.getInstance().getUserProfile();
+      const profile = LevelService.getInstance().getUserProfile();
       profileColor = profile.avatarColor;
       profileUrl = profile.avatarUrl;
     }
@@ -323,6 +324,8 @@ export class UserProfileCard extends PIXI.Container {
 
     updateVisuals();
 
+    // Disable interaction for now as requested
+    /*
     container.on('pointertap', () => {
       liked = !liked;
       this.levelData.isLikedByCurrentUser = liked;
@@ -330,6 +333,7 @@ export class UserProfileCard extends PIXI.Container {
       if (this.onLikeToggleCallback) this.onLikeToggleCallback();
       updateVisuals();
     });
+    */
 
     return container;
   }

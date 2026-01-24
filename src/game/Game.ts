@@ -24,7 +24,7 @@ import { UIFactory } from './ui/UIFactory';
 import { type Pen, DEFAULT_PEN } from './data/PenData';
 import { DrawingManager } from './input/DrawingManager';
 import { LevelManager } from './levels/LevelManager';
-import { MockLevelService, CURRENT_USER_ID } from './services/MockLevelService';
+import { LevelService, CURRENT_USER_ID } from './services/LevelService';
 import type { LevelData } from './levels/LevelSchema';
 import type { Point } from './utils/douglasPeucker';
 import {
@@ -712,23 +712,76 @@ export class Game {
         LanguageManager.getInstance().t('publish.confirm_publish'),
         async () => {
           this.closeConfirmDialog();
-          // Auto-save current design first, especially if they just passed
+          // Auto-save current design first
           await this.saveLevel();
-          await MockLevelService.getInstance().publishLevel(currentLevel.id);
+
+          // Mark locally as published (optimistic)
+          await LevelService.getInstance().publishLevel(currentLevel.id);
           currentLevel.isPublished = true;
 
-          this.showConfirmDialog(
-            LanguageManager.getInstance().t('publish.success'),
-            () => {
-              this.closeConfirmDialog();
-              this.showLevelSelection();
-            },
-            () => {
-              this.closeConfirmDialog();
-              this.showLevelSelection();
-            },
-            { showCancel: false, confirmKey: 'common.ok' }
-          );
+          // Prepare IssueOps Data
+          // Sanitize data (remove local tracking metrics)
+          const { likes, isPublished, authorPassed, attempts, clears, isLikedByCurrentUser, ...cleanData } = currentLevel;
+
+          const payloadObj = { id: currentLevel.id, data: cleanData };
+          const payloadStr = JSON.stringify(payloadObj);
+
+          // Construct URL
+          const repo = 'wangicheng/opendots'; // Hardcoded for now, or move to config
+          const baseUrl = `https://github.com/${repo}/issues/new`;
+          const params = new URLSearchParams({
+            template: 'submission.yml',
+            title: `[Data]: Publish Level ${currentLevel.id}`,
+            labels: 'data-submission',
+            action: 'publish_level',
+            payload: payloadStr
+          });
+
+          const fullUrl = `${baseUrl}?${params.toString()}`;
+
+          // Check URL length
+          if (fullUrl.length > 8000) {
+            // Fallback for huge levels: Copy payload to clipboard
+            await navigator.clipboard.writeText(payloadStr);
+            const fallbackParams = new URLSearchParams({
+              template: 'submission.yml',
+              title: `[Data]: Publish Level ${currentLevel.id}`,
+              labels: 'data-submission',
+              action: 'publish_level'
+            });
+            const fallbackUrl = `${baseUrl}?${fallbackParams.toString()}`;
+
+            this.showConfirmDialog(
+              LanguageManager.getInstance().t('publish.success') + '\n(Data too large, payload copied to clipboard)',
+              () => {
+                this.closeConfirmDialog();
+                window.open(fallbackUrl, '_blank');
+                this.showLevelSelection();
+              },
+              () => {
+                this.closeConfirmDialog();
+                window.open(fallbackUrl, '_blank');
+                this.showLevelSelection();
+              },
+              { showCancel: false, confirmKey: 'common.go_to_github' }
+            );
+          } else {
+            // Normal Flow
+            this.showConfirmDialog(
+              LanguageManager.getInstance().t('publish.success'),
+              () => {
+                this.closeConfirmDialog();
+                window.open(fullUrl, '_blank');
+                this.showLevelSelection();
+              },
+              () => {
+                this.closeConfirmDialog();
+                window.open(fullUrl, '_blank');
+                this.showLevelSelection();
+              },
+              { showCancel: false, confirmKey: 'common.go_to_github' }
+            );
+          }
         },
         () => this.closeConfirmDialog()
       );
@@ -1296,7 +1349,7 @@ export class Game {
     const { LevelSelectionUI } = await import('./ui/LevelSelectionUI');
 
     // Fetch all levels (built-in + user uploaded) from Service
-    const levelService = MockLevelService.getInstance();
+    const levelService = LevelService.getInstance();
     const levels = await levelService.getLevelList();
 
     this.levelSelectionUI = new LevelSelectionUI(levels, (levelData) => {
@@ -1341,7 +1394,7 @@ export class Game {
       this.levelSelectionUI.setPen(this.currentPen.id);
 
       // Refresh Levels
-      const levelService = MockLevelService.getInstance();
+      const levelService = LevelService.getInstance();
       const levels = await levelService.getLevelList();
       this.levelSelectionUI.updateLevels(levels);
     }
@@ -1620,7 +1673,7 @@ export class Game {
     };
 
     console.log('Creating new level:', newLevel);
-    await MockLevelService.getInstance().uploadLevel(newLevel);
+    await LevelService.getInstance().uploadLevel(newLevel);
 
     // Start in Edit mode (currently just Play mode as placeholder until EditorUI is ready)
     // await this.startLevel(newLevel); // Original line
@@ -2352,7 +2405,7 @@ export class Game {
 
   private async saveLevel() {
     if (this.editingLevel) {
-      await MockLevelService.getInstance().uploadLevel(this.editingLevel);
+      await LevelService.getInstance().uploadLevel(this.editingLevel);
       this.editorHasChanged = false;
       console.log("Level Saved.");
     }

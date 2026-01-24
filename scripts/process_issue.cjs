@@ -72,12 +72,12 @@ async function run() {
     const bodyData = parseIssueBody(issue.body);
     console.log('Parsed Body Data:', bodyData);
 
-    const username = bodyData['Username'];
+    const username = issue.user.login;
     const action = bodyData['Action Type'];
     const rawPayload = bodyData['Payload'];
 
-    if (!username || !action || !rawPayload) {
-      throw new Error('Missing required fields (Username, Action Type, Payload)');
+    if (!action || !rawPayload) {
+      throw new Error('Missing required fields (Action Type, Payload).');
     }
 
     // Parse Payload JSON

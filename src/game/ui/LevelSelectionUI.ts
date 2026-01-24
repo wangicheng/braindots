@@ -15,7 +15,7 @@ import { PenSelectionUI } from './PenSelectionUI';
 import { SettingsUI } from './SettingsUI';
 import { type Pen } from '../data/PenData';
 import { UserProfileCard } from './modals/UserProfileCard';
-import { CURRENT_USER_ID, MockLevelService } from '../services/MockLevelService';
+import { CURRENT_USER_ID, LevelService } from '../services/LevelService';
 import { UIFactory } from './UIFactory';
 import { LanguageManager, type TranslationKey } from '../i18n/LanguageManager';
 
@@ -439,7 +439,7 @@ export class LevelSelectionUI extends PIXI.Container {
       container.addChild(tagContainer);
     } else {
       // Published Level - Show Likes (Top Left)
-      const likesCount = levelData.likes || 0;
+      const likesCount = 0; // Forced to 0 as requested for now
 
       const likesContainer = new PIXI.Container();
 
@@ -500,7 +500,7 @@ export class LevelSelectionUI extends PIXI.Container {
     // Check if it's CURRENT USER and use their profile
     let profileUrl: string | undefined;
     if (levelData.authorId === CURRENT_USER_ID) {
-      const profile = MockLevelService.getInstance().getUserProfile();
+      const profile = LevelService.getInstance().getUserProfile();
       color = profile.avatarColor; // Override color
       profileUrl = profile.avatarUrl;
     }
@@ -733,7 +733,7 @@ export class LevelSelectionUI extends PIXI.Container {
 
     // Listen for profile updates to refresh the background immediately
     this.settingsUI.on('profileUpdate', () => {
-      MockLevelService.getInstance().getLevelList().then(levels => {
+      LevelService.getInstance().getLevelList().then(levels => {
         this.levels = levels;
         this.refreshVisibleLevels();
       });
@@ -749,7 +749,7 @@ export class LevelSelectionUI extends PIXI.Container {
       this.settingsUI = null;
 
       // Refresh to update avatar and name
-      MockLevelService.getInstance().getLevelList().then(levels => {
+      LevelService.getInstance().getLevelList().then(levels => {
         this.levels = levels;
         this.refreshVisibleLevels();
       });
@@ -770,12 +770,14 @@ export class LevelSelectionUI extends PIXI.Container {
         this.closeUserProfile();
         this.setFilterAuthor(id, levelData.author || '', color);
       },
+      /*
       () => {
-        MockLevelService.getInstance().toggleLike(levelData.id);
+        LevelService.getInstance().toggleLike(levelData.id);
         this.setupGrid();
       },
+      */
       (levelId) => {
-        MockLevelService.getInstance().deleteLevel(levelId);
+        LevelService.getInstance().deleteLevel(levelId);
         this.closeUserProfile();
         // Remove locally to update UI immediately without re-fetching
         this.levels = this.levels.filter(l => l.id !== levelId);
@@ -986,12 +988,13 @@ export class LevelSelectionUI extends PIXI.Container {
     } else if (filterId) {
       // Filtering by another user -> Match author AND must be published
       list = list.filter(l => {
-        const isAuthor = l.authorId === filterId || (!l.authorId && filterId.startsWith('mock_user'));
+        const isAuthor = l.authorId === filterId;
         return isAuthor && l.isPublished !== false;
       });
     } else {
-      // Global list (Latest/Popular) -> Must be published
-      list = list.filter(l => l.isPublished !== false);
+      // Global list (Latest/Popular) -> Must be published AND NOT Local-Only User
+      // "Local stored own public levels should only show in Mine"
+      list = list.filter(l => l.isPublished !== false && l.authorId !== CURRENT_USER_ID);
     }
 
     // 2. Sort
