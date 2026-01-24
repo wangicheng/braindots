@@ -789,14 +789,19 @@ export class LevelSelectionUI extends PIXI.Container {
           });
 
           window.open(`${baseUrl}?${params.toString()}`, '_blank');
+
+          // Optimistic: Mark as Unpublished (Keep local copy)
+          const level = this.levels.find(l => l.id === levelId);
+          if (level) {
+            level.isPublished = false;
+          }
+        } else {
+          // Local Draft Delete
+          LevelService.getInstance().deleteLevel(levelId);
+          this.levels = this.levels.filter(l => l.id !== levelId);
         }
 
-        LevelService.getInstance().deleteLevel(levelId);
         this.closeUserProfile();
-        // Remove locally to update UI immediately without re-fetching
-        // If it was published, it might technically reappear on refresh until the issue is processed and merged, 
-        // but removing it gives immediate feedback.
-        this.levels = this.levels.filter(l => l.id !== levelId);
         this.refreshVisibleLevels();
       },
       this.filterAuthorId === CURRENT_USER_ID // allowDelete

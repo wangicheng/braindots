@@ -4,7 +4,7 @@ import type { LevelData } from '../levels/LevelSchema';
 // Local storage key for custom levels
 const STORAGE_KEY = 'opendots_custom_levels';
 const LIKES_KEY = 'opendots_user_likes';
-const DELETED_KEY = 'opendots_deleted_levels';
+
 const PROFILE_KEY = 'opendots_user_profile';
 export const CURRENT_USER_ID = 'user_me';
 
@@ -21,11 +21,11 @@ export class LevelService {
 
   private publishedLevelIds: Set<string> = new Set();
   private likedLevelIds: Set<string> = new Set();
-  private deletedLevelIds: Set<string> = new Set();
+
 
   private constructor() {
     this.loadLikes();
-    this.loadDeleted();
+
 
     // Ensure "Me" is replaced with actual profile name
     // const profile = this.getUserProfile();
@@ -104,7 +104,7 @@ export class LevelService {
     const drafts = localLevels.filter(l => !remoteIds.has(l.id));
 
     // Combine: Drafts (Local-Unique) + Published (Remote)
-    const all = [...drafts, ...remoteLevels].filter(l => !this.deletedLevelIds.has(l.id));
+    const all = [...drafts, ...remoteLevels];
 
     return all;
   }
@@ -195,29 +195,13 @@ export class LevelService {
     const stored = this.getStoredLevels();
     const index = stored.findIndex(l => l.id === levelId);
 
-    // Always track as deleted even if not in storage
-    this.deletedLevelIds.add(levelId);
-    localStorage.setItem(DELETED_KEY, JSON.stringify(Array.from(this.deletedLevelIds)));
-
     if (index >= 0) {
       stored.splice(index, 1);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
     }
   }
 
-  private loadDeleted(): void {
-    try {
-      const item = localStorage.getItem(DELETED_KEY);
-      if (item) {
-        const ids = JSON.parse(item);
-        if (Array.isArray(ids)) {
-          ids.forEach(id => this.deletedLevelIds.add(id));
-        }
-      }
-    } catch (e) {
-      console.error('Failed to parse deleted levels', e);
-    }
-  }
+
 
   public getUserProfile(): UserProfile {
     try {

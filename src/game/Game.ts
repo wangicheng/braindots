@@ -765,7 +765,7 @@ export class Game {
             const fallbackUrl = `${baseUrl}?${fallbackParams.toString()}`;
 
             this.showConfirmDialog(
-              LanguageManager.getInstance().t('publish.success') + '\n(Data too large, payload copied to clipboard)',
+              LanguageManager.getInstance().t('publish.proceed_to_github') + '\n(Data too large, payload copied to clipboard)',
               () => {
                 this.closeConfirmDialog();
                 window.open(fallbackUrl, '_blank');
@@ -781,7 +781,7 @@ export class Game {
           } else {
             // Normal Flow
             this.showConfirmDialog(
-              LanguageManager.getInstance().t('publish.success'),
+              LanguageManager.getInstance().t('publish.proceed_to_github'),
               () => {
                 this.closeConfirmDialog();
                 window.open(fullUrl, '_blank');

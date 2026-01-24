@@ -35,7 +35,7 @@ export const zhTW = {
   'editor.play': '試玩',
   'publish.confirm_clear': '您必須先過關才能發布。',
   'publish.confirm_publish': '發布此關卡？',
-  'publish.success': '發布成功！',
+  'publish.proceed_to_github': '請前往 GitHub 完成發布',
   'common.ok': '確定',
   'pen.names.pencil': '鉛筆',
   'pen.names.mechanicalpencil': '自動鉛筆',

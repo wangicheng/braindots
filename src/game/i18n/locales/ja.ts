@@ -35,7 +35,7 @@ export const ja = {
   'editor.play': 'プレイ',
   'publish.confirm_clear': '公開するにはまずクリアする必要があります。',
   'publish.confirm_publish': 'このレベルを公開しますか？',
-  'publish.success': '公開しました！',
+  'publish.proceed_to_github': 'GitHubへ進んで公開を完了してください',
   'common.ok': 'OK',
   'pen.names.pencil': '鉛筆',
   'pen.names.mechanicalpencil': 'シャープペンシル',

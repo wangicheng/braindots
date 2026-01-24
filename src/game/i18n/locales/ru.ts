@@ -35,7 +35,7 @@ export const ru = {
   'editor.play': 'Играть',
   'publish.confirm_clear': 'Сначала нужно пройти уровень.',
   'publish.confirm_publish': 'Опубликовать этот уровень?',
-  'publish.success': 'Опубликовано!',
+  'publish.proceed_to_github': 'Перейдите на GitHub для публикации',
   'common.ok': 'ОК',
   'pen.names.pencil': 'Карандаш',
   'pen.names.mechanicalpencil': 'Мех. карандаш',

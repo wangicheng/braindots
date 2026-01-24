@@ -35,7 +35,7 @@ export const en = {
   'editor.play': 'Play',
   'publish.confirm_clear': 'You must clear the level first.',
   'publish.confirm_publish': 'Publish this level?',
-  'publish.success': 'Published!',
+  'publish.proceed_to_github': 'Please proceed to GitHub to publish',
   'common.ok': 'OK',
   'pen.names.pencil': 'Pencil',
   'pen.names.mechanicalpencil': 'Mechanical Pencil',
