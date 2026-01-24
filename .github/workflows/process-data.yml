@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   process:
-    if: contains(github.event.issue.labels.*.name, 'data-submission')
+    if: startsWith(github.event.issue.title, '[Data]:')
     runs-on: ubuntu-latest
     permissions:
       contents: write
