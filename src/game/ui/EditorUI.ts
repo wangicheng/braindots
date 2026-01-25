@@ -382,6 +382,20 @@ export class EditorUI extends PIXI.Container {
     this.lastHasSelection = hasSelection;
     this.lastIsBall = isBall;
 
+    if (!hasSelection) {
+      this.currentSelection = null;
+      if (this.objectSelector) {
+        this.objectSelector.setSelection(null);
+      }
+      if (this.propertyInspector) {
+        this.removeChild(this.propertyInspector);
+        this.propertyInspector.destroy();
+        this.propertyInspector = null;
+      }
+    }
+
+    if (this.currentMode !== 'edit') return;
+
     if (!this.copyBtn || !this.deleteBtn) return;
 
     // Copy/Delete Rules:
@@ -401,18 +415,6 @@ export class EditorUI extends PIXI.Container {
     // Toggle Bottom Bar visibility based on selection and tools state
     const advancedToolsOpen = !!this.objectSelector;
     const showBottomBar = !hasSelection && !advancedToolsOpen;
-
-    if (!hasSelection) {
-      this.currentSelection = null;
-      if (this.objectSelector) {
-        this.objectSelector.setSelection(null);
-      }
-      if (this.propertyInspector) {
-        this.removeChild(this.propertyInspector);
-        this.propertyInspector.destroy();
-        this.propertyInspector = null;
-      }
-    }
 
     if (this.bottomBar) this.bottomBar.visible = showBottomBar;
     if (this.tabsContainer) this.tabsContainer.visible = showBottomBar;
