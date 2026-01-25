@@ -53,7 +53,8 @@ export class FallingObject {
 
     rigidBodyDesc
       .setTranslation(physicsPos.x, physicsPos.y)
-      .setRotation(-(effectiveAngle * Math.PI) / 180);
+      .setRotation(-(effectiveAngle * Math.PI) / 180)
+      .setCanSleep(false);
 
     this.body = world.createRigidBody(rigidBodyDesc);
 

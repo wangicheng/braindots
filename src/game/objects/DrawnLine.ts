@@ -34,7 +34,8 @@ export class DrawnLine {
 
     // Create Rapier dynamic body
     const rigidBodyDesc = R.RigidBodyDesc.dynamic()
-      .setTranslation(physicsPos.x, physicsPos.y);
+      .setTranslation(physicsPos.x, physicsPos.y)
+      .setCanSleep(false);
 
     this.body = physicsWorld.getWorld().createRigidBody(rigidBodyDesc);
 

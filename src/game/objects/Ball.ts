@@ -52,7 +52,8 @@ export class Ball {
 
     rigidBodyDesc
       .setTranslation(physicsPos.x, physicsPos.y)
-      .setCcdEnabled(true); // Better collision detection for fast-moving objects
+      .setCcdEnabled(true) // Better collision detection for fast-moving objects
+      .setCanSleep(false);
 
     this.body = physicsWorld.getWorld().createRigidBody(rigidBodyDesc);
 
