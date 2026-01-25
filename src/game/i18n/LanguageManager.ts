@@ -10,7 +10,7 @@ export class LanguageManager {
   private listeners: (() => void)[] = [];
 
   private constructor() {
-    this.currentLang = localStorage.getItem('braindots_language') || 'en';
+    this.currentLang = localStorage.getItem('opendots_language') || 'en';
   }
 
   public static getInstance(): LanguageManager {
@@ -27,7 +27,7 @@ export class LanguageManager {
   public setLanguage(lang: string): void {
     if (this.currentLang !== lang) {
       this.currentLang = lang;
-      localStorage.setItem('braindots_language', lang);
+      localStorage.setItem('opendots_language', lang);
       this.notifyListeners();
     }
   }

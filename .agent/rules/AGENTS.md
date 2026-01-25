@@ -4,7 +4,7 @@ trigger: always_on
 
 # Project Overview
 
-OpenDots is a physics-based puzzle game inspired by "Brain Dots," built using TypeScript, Vite, Pixi.js for rendering, and Rapier2d for physics simulation. Players solve levels by drawing lines and shapes to guide balls to their destinations or interact with various game objects. The project includes a fully functional level editor and a level selection interface.
+OpenDots is a physics-based puzzle game inspired by "Open Dots", built using TypeScript, Vite, Pixi.js for rendering, and Rapier2d for physics simulation. Players solve levels by drawing lines and shapes to guide balls to their destinations or interact with various game objects. The project includes a fully functional level editor and a level selection interface.
 
 ## Repository Structure
 
