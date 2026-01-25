@@ -24,6 +24,6 @@ export const auth = (env: Env) => {
     plugins: [
       openAPI(),
     ],
-    trustedOrigins: ["http://localhost:5173", "https://opendots.pages.dev"],
+    trustedOrigins: ["http://localhost:5173", "https://opendots.pages.dev", "https://wangicheng.github.io"],
   });
 };
