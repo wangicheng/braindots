@@ -15,7 +15,7 @@ import { PenSelectionUI } from './PenSelectionUI';
 import { SettingsUI } from './SettingsUI';
 import { type Pen } from '../data/PenData';
 import { UserProfileCard } from './modals/UserProfileCard';
-import { CURRENT_USER_ID, LevelService } from '../services/LevelService';
+import { LevelService } from '../services/LevelService';
 import { UIFactory } from './UIFactory';
 import { LanguageManager, type TranslationKey } from '../i18n/LanguageManager';
 
@@ -816,11 +816,10 @@ export class LevelSelectionUI extends PIXI.Container {
 
   // --- Logic for Sorting and Filtering ---
 
-  // --- Logic for Sorting and Filtering ---
-
   private setSortMode(mode: 'latest' | 'popular'): void {
+    const currentUserId = LevelService.getInstance().getUserProfile()?.id;
     // If currently in "Mine" mode, clicking a sort button should exit "Mine" mode (Tab switching behavior)
-    if (this.filterAuthorId === CURRENT_USER_ID) {
+    if (this.filterAuthorId && this.filterAuthorId === currentUserId) {
       this.setFilterAuthor(null);
       // We continue to set the sort mode below, so it becomes "Global + [Mode]"
     }
@@ -847,7 +846,8 @@ export class LevelSelectionUI extends PIXI.Container {
       this.filterAuthorName = authorName || `User ${authorId.slice(0, 4)}`;
       this.filterAuthorColor = authorColor || 0x888888;
 
-      if (authorId === CURRENT_USER_ID) {
+      const currentUserId = LevelService.getInstance().getUserProfile()?.id;
+      if (currentUserId && authorId === currentUserId) {
         this.sortMode = 'latest';
       }
     } else {
@@ -864,8 +864,10 @@ export class LevelSelectionUI extends PIXI.Container {
 
     this.filterFilterTagContainer.removeChildren();
 
+    const currentUserId = LevelService.getInstance().getUserProfile()?.id;
+
     // Only show if filtered and NOT filtering by ME
-    if (!this.filterAuthorId || this.filterAuthorId === CURRENT_USER_ID) {
+    if (!this.filterAuthorId || (currentUserId && this.filterAuthorId === currentUserId)) {
       this.filterFilterTagContainer.visible = false;
       return;
     }
@@ -995,9 +997,11 @@ export class LevelSelectionUI extends PIXI.Container {
     let list = this.levels;
     const filterId = this.filterAuthorId;
 
+    const currentUserId = LevelService.getInstance().getUserProfile()?.id;
+
     // Default: Filter out unpublished levels (Drafts)
     // Only show drafts if we are explicitly filtering by CURRENT_USER_ID ("Mine")
-    if (filterId === CURRENT_USER_ID) {
+    if (currentUserId && filterId === currentUserId) {
       list = list.filter(l => l.authorId === filterId);
     } else if (filterId) {
       // Filtering by another user -> Match author AND must be published
