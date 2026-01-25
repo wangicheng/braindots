@@ -8,7 +8,7 @@ const app = new Hono<{ Bindings: Env }>();
 
 // Enable CORS
 app.use('/*', cors({
-  origin: ['http://localhost:5173', 'https://opendots.pages.dev'],
+  origin: ['http://localhost:5173', 'https://opendots.pages.dev', 'https://wangicheng.github.io'],
   allowHeaders: ['Content-Type', 'Authorization', 'x-user-id'],
   allowMethods: ['POST', 'GET', 'OPTIONS', 'DELETE', 'PUT'],
   exposeHeaders: ['Content-Length'],
