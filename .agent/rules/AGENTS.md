@@ -9,6 +9,9 @@ OpenDots is a physics-based puzzle game inspired by "Open Dots", built using Typ
 ## Repository Structure
 
 - `.agent/` - Agent workflows and configurations.
+- `backend/` - Cloudflare Workers backend (Hono + D1).
+  - `src/` - Backend source code.
+  - `wrangler.toml` - Cloudflare configuration.
 - `src/` - Source code.
   - `game/` - Core game logic and subsystems.
     - `data/` - Data handling.
@@ -18,7 +21,7 @@ OpenDots is a physics-based puzzle game inspired by "Open Dots", built using Typ
     - `levels/` - Level data schemas (`LevelSchema.ts`) and JSON files.
     - `objects/` - Game entities (Ball, Obstacle, etc.) inheriting or implementing common interfaces.
     - `physics/` - Physics engine integration (`PhysicsWorld`).
-    - `services/` - Data service layer (Mock vs Real APIs).
+    - `services/` - Data service layer (`LevelService`, `RestApiClient`).
     - `ui/` - User interface components (`LevelSelectionUI`, `EditorUI`).
   - `main.ts` - Application entry point.
 - `public/` - Static assets.
@@ -30,11 +33,14 @@ OpenDots is a physics-based puzzle game inspired by "Open Dots", built using Typ
 # Install dependencies
 npm install
 
-# Start development server (hot reload)
+# Start development server (Frontend)
+# Connects to remote backend by default (see .env)
 npm run dev
 
-# Build for production
-npm run build
+# Backend Development (in backend/ directory)
+cd backend
+npm install
+npm run dev # Starts local worker
 ```
 
 ## Code Style & Conventions
@@ -62,7 +68,13 @@ npm run build
 - **Rendering**: Pixi.js handles the 2D scenegraph. Visuals are often synchronized with physics bodies in the `update` loop.
 - **Level System**: Levels are defined in JSON (matching `LevelSchema.ts`). `LevelManager` handles loading/parsing.
 - **Editor**: `EditorUI.ts` (in `ui/`) and `TransformGizmo.ts` (in `editor/`) allow users to create and modify levels at runtime.
-- **Services**: `MockLevelService` provides a local storage-based backend for level progression and saving, designed to be swappable with a real API.
+- **Services**: `LevelService` manages state and data persistence. It uses `RestApiClient` to communicate with the backend.
+  - `RestApiClient`: Handles HTTP requests to the Cloudflare Worker.
+  - Authentication: Uses `x-user-id` header (currently stored in localStorage) for identification.
+- **Backend**: Hosted on Cloudflare Workers.
+  - **Framework**: Hono.
+  - **Database**: Cloudflare D1 (SQLite) for storing users, levels, and stats.
+  - **Tables**: `users`, `levels` (stores JSON data), `likes`.
 
 ## Testing Strategy
 
