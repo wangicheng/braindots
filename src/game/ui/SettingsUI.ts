@@ -138,7 +138,7 @@ export class SettingsUI extends PIXI.Container {
       // --- GUEST STATE: SHOW GOOGLE LOGIN ---
 
       const infoText = new PIXI.Text({
-        text: 'Sign in with Google to create levels, \nlike levels, and sync your profile.',
+        text: t('auth.signin_prompt'),
         style: {
           fontFamily: 'Arial',
           fontSize: scale(16),
@@ -163,7 +163,7 @@ export class SettingsUI extends PIXI.Container {
       bg.stroke({ width: 1, color: 0xCCCCCC });
 
       const btnText = new PIXI.Text({
-        text: 'Sign in with Google',
+        text: t('auth.signin_google'),
         style: {
           fontFamily: 'Arial',
           fontSize: scale(18),
@@ -230,7 +230,7 @@ export class SettingsUI extends PIXI.Container {
     btnBgToken.stroke({ width: 1, color: 0xFF0000 });
 
     const btnTextToken = new PIXI.Text({
-      text: 'Logout',
+      text: t('auth.logout'),
       style: {
         fontFamily: 'Arial',
         fontSize: scale(16),

@@ -43,4 +43,8 @@ export const en = {
   'pen.names.brush': 'Brush',
   'pen.names.roller': 'Roller',
   'pen.names.cranetrack': 'Crane Track',
+  'auth.signin_google': 'Sign in with Google',
+  'auth.signin_prompt': 'Sign in with Google to create levels, \nlike levels, and sync your profile.',
+  'auth.logout': 'Logout',
+  'common.unknown': 'Unknown',
 };

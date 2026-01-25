@@ -43,4 +43,8 @@ export const ja = {
   'pen.names.brush': '筆',
   'pen.names.roller': 'ローラー',
   'pen.names.cranetrack': 'キャタピラ',
+  'auth.signin_google': 'Googleでログイン',
+  'auth.signin_prompt': 'レベルの作成、いいね、\nプロフィールの同期にはGoogleログインが必要です。',
+  'auth.logout': 'ログアウト',
+  'common.unknown': '不明',
 };

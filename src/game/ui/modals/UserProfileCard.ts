@@ -208,7 +208,7 @@ export class UserProfileCard extends PIXI.Container {
     topY += (avatarRadius * 2) + scale(15);
 
     // Name
-    const nameString = this.levelData.author || 'Unknown';
+    const nameString = this.levelData.author || LanguageManager.getInstance().t('common.unknown');
     const nameText = new PIXI.Text({
       text: nameString,
       style: { fontFamily: 'Arial', fontSize: scale(20), fontWeight: 'bold', fill: '#555555', align: 'center', wordWrap: true, wordWrapWidth: subCardWidth - scale(20) }

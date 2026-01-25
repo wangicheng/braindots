@@ -43,4 +43,8 @@ export const zhTW = {
   'pen.names.brush': '毛筆',
   'pen.names.roller': '滾輪',
   'pen.names.cranetrack': '履帶',
+  'auth.signin_google': '使用 Google 登入',
+  'auth.signin_prompt': '使用 Google 登入以建立關卡、\n按讚關卡並同步您的個人資料。',
+  'auth.logout': '登出',
+  'common.unknown': '未知',
 };

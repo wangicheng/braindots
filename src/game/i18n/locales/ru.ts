@@ -43,4 +43,8 @@ export const ru = {
   'pen.names.brush': 'Кисть',
   'pen.names.roller': 'Валик',
   'pen.names.cranetrack': 'Гусеница',
+  'auth.signin_google': 'Войти через Google',
+  'auth.signin_prompt': 'Войдите через Google, чтобы создавать уровни,\nставить лайки и синхронизировать профиль.',
+  'auth.logout': 'Выйти',
+  'common.unknown': 'Неизвестно',
 };
