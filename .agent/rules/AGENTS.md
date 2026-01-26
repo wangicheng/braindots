@@ -12,29 +12,28 @@ OpenDots is a physics-based puzzle game inspired by "Open Dots", built using Typ
 - `backend/` - Cloudflare Workers backend (Hono + D1).
   - `src/` - Backend source code.
   - `wrangler.toml` - Cloudflare configuration.
-- `src/` - Source code.
-  - `game/` - Core game logic and subsystems.
-    - `data/` - Data handling.
-    - `editor/` - Editor utilities (e.g., `TransformGizmo`).
-    - `effects/` - Visual effects managers.
-    - `input/` - Input handling logic.
-    - `levels/` - Level data schemas (`LevelSchema.ts`) and JSON files.
-    - `objects/` - Game entities (Ball, Obstacle, etc.) inheriting or implementing common interfaces.
-    - `physics/` - Physics engine integration (`PhysicsWorld`).
-    - `services/` - Data service layer (`LevelService`, `RestApiClient`).
-    - `ui/` - User interface components (`LevelSelectionUI`, `EditorUI`).
-  - `main.ts` - Application entry point.
-- `public/` - Static assets.
-- `dist/` - Production build artifacts.
+- `frontend/` - Frontend application.
+  - `src/` - Source code.
+    - `game/` - Core game logic and subsystems.
+      - `data/` - Data handling.
+      - `editor/` - Editor utilities (e.g., `TransformGizmo`).
+      - `effects/` - Visual effects managers.
+      - `input/` - Input handling logic.
+      - `levels/` - Level data schemas (`LevelSchema.ts`) and JSON files.
+      - `objects/` - Game entities (Ball, Obstacle, etc.) inheriting or implementing common interfaces.
+      - `physics/` - Physics engine integration (`PhysicsWorld`).
+      - `services/` - Data service layer (`LevelService`, `RestApiClient`).
+      - `ui/` - User interface components (`LevelSelectionUI`, `EditorUI`).
+    - `main.ts` - Application entry point.
+  - `public/` - Static assets.
+  - `dist/` - Production build artifacts.
 
 ## Build & Development Commands
 
 ```bash
-# Install dependencies
+# Frontend Development (in frontend/ directory)
+cd frontend
 npm install
-
-# Start development server (Frontend)
-# Connects to remote backend by default (see .env)
 npm run dev
 
 # Backend Development (in backend/ directory)
